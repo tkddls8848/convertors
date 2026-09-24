@@ -1,0 +1,51 @@
+{
+  // Cloudflare 배포 정의.
+  //
+  //   배포 전에 반드시:
+  //     python3 scripts/fetch_fonts.py   심을 한글 글꼴 (없어도 빌드는 선다)
+  //     npm ci && npm run build          정적 자산 → dist/
+  //
+  //   또는 그 순서를 담은 scripts/cf_build.sh 를 돌린다.
+  //
+  // ── 올라가는 것은 정적 자산뿐이다 ──────────────────────────────────────
+  //
+  // 여기에는 `main` 이 없다. Worker 스크립트가 없다는 뜻이고, 그것이 이 도구의
+  // 약속과 맞는다 — **고른 파일은 이 컴퓨터를 벗어나지 않는다.** 받을 서버가
+  // 아예 없으면 그 약속을 어길 방법도 없다. 덤으로,
+  //
+  //   - 요청당 CPU 한도에 걸릴 일이 없다 (변환은 전부 브라우저가 한다)
+  //   - 하루 요청 한도를 쓰지 않는다 (정적 자산 요청은 무료·무제한)
+  //   - Worker 스크립트 크기 한도와 무관하다. PDF.js·SheetJS 가 무겁지만
+  //     그것들은 전부 자산이지 스크립트가 아니다
+  //
+  // 보안 헤더(CSP 포함)는 public/_headers 가 갖는다. `connect-src 'self'` 가
+  // 파일이 밖으로 나가지 않는다는 약속을 브라우저에게 지키게 하는 자리다.
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // 대시보드(Workers Builds)에 연결된 Worker 이름과 같아야 한다. 다르면
+  // "Failed to match Worker name ... the CI system expected" 경고가 나고
+  // Cloudflare 가 이름을 고치는 PR 을 연다.
+  "name": "convertors",
+  "compatibility_date": "2026-09-01",
+
+  "assets": {
+    "directory": "dist",
+
+    // 화면이 하나뿐이고 주소로 나뉘는 길이 없다. 없는 주소에 index.html 을
+    // 내주면 오타를 친 사람에게 멀쩡한 화면을 보여 주게 되므로 그냥 404 로
+    // 답한다 — 조용히 실패하지 않는 것이 이 도구의 규칙이다.
+    "not_found_handling": "none"
+  },
+
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  "env": {
+    // 프로덕션과 같은 구성의 스테이징. 올리기 전에 여기서 먼저 본다.
+    "staging": {
+      "name": "convertors-staging"
+    }
+  }
+}

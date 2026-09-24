@@ -85,11 +85,15 @@ convertors/
     *.test.ts         도구마다 계산을 고정한다
     assets/           HWPX 뼈대 파일과 그 출처·라이선스
     hwpx-probe.ts     한 쪽짜리 최소 HWPX 생성기 (probe.html, 개발 검증용)
+  web/wrangler.jsonc  Cloudflare 배포 정의. `main` 이 없다 — 올라가는 것은 자산뿐이다
   web/scripts/
     check-converters.mjs    실제 Chromium 으로 공개 화면을 조작해 산출물을 검사
     check-formats.mjs       문서·스프레드시트 변환을 형식마다 열어 내용을 확인
     check-hwpx.mjs          한 쪽 HWPX 의 패키지 구조·쪽 크기·PNG 픽셀 검사
     check-office-tools.mjs  뒤에 들인 도구 16개를 실제 Chromium 으로 열고 산출물을 검사
+    check-deploy.mjs        배포 모양 그대로(CSP·헤더·자산·404) 검사한다
+    cf_build.sh             Cloudflare 빌드 단계 — npm ci → 글꼴 → dist
+    cf_deploy.sh            Cloudflare 배포 단계 — wrangler 에 인자를 넘긴다
     fetch_fonts.py          심을 한글 글꼴을 npm 에서 받아 web/public/fonts/ 로
   web/public/
     _headers          CSP — 파일이 나가지 않는다는 약속을 브라우저가 지키게 한다
@@ -239,6 +243,60 @@ node web/scripts/check-converters.mjs
 node web/scripts/check-formats.mjs
 node web/scripts/check-office-tools.mjs
 ```
+
+## 배포 (Cloudflare)
+
+올라가는 것은 **정적 자산뿐이다.** `wrangler.jsonc` 에 `main` 이 없다 — Worker
+스크립트가 없다는 뜻이고, 그것이 이 도구의 약속과 맞는다. 받을 서버가 아예
+없으면 파일을 밖으로 보낼 방법도 없다. 덤으로 요청당 CPU 한도에 걸릴 일이 없고,
+정적 자산 요청은 무료·무제한이라 하루 요청 한도도 쓰지 않는다.
+
+보안 헤더는 `web/public/_headers` 가 갖는다. 그 안의
+`Content-Security-Policy: … connect-src 'self'` 가 **파일이 나가지 않는다는 약속을
+브라우저에게 지키게 하는 자리다** — 코드의 선의가 아니라 규칙이 된다.
+
+### 손으로 올릴 때
+
+```bash
+npx wrangler login                     # 처음 한 번
+bash web/scripts/cf_build.sh           # npm ci → 글꼴 → dist
+npm --prefix web run check             # 올리지 않고 설정·자산만 맞춰 본다
+npm --prefix web run deploy            # 또는 deploy:staging
+```
+
+### Cloudflare Workers Builds 에 맡길 때
+
+대시보드에 넣을 값은 셋이다. 나머지 순서는 저장소가 갖고 있어야 대시보드 설정과
+코드가 어긋나지 않는다.
+
+| 항목 | 값 |
+|---|---|
+| Worker 이름 | `convertors` (`wrangler.jsonc` 의 `name` 과 같아야 한다) |
+| Build command | `bash "$(git rev-parse --show-toplevel)"/web/scripts/cf_build.sh` |
+| Deploy command | `bash "$(git rev-parse --show-toplevel)"/web/scripts/cf_deploy.sh deploy` |
+
+두 스크립트 모두 제 위치를 보고 `web/` 으로 옮겨 가므로 Root directory 가
+저장소 루트든 `web` 이든 똑같이 돈다.
+
+빌드는 `npm ci` → 글꼴 → `npm run build` 순이다. **글꼴을 못 받아도 빌드를 세우지
+않는다** — 그때 PDF 글자 고치기는 라틴 기본 글꼴과 "내 글꼴 불러오기" 로 물러나고
+화면이 그 사실을 적는다. 글꼴 하나 때문에 나머지를 못 올리는 편이 더 나쁘다.
+
+### 올리기 전에 배포 모양 그대로 본다
+
+개발 서버에는 CSP 가 없고 자산도 번들되기 전이라, **배포에서만 깨지는 것**을
+잡지 못한다 — 헤더가 안 붙거나, `/pdf-assets` 가 `dist` 에 안 실렸거나, CSP 가 제
+코드를 막거나, 없는 주소가 멀쩡한 화면을 내주거나. 그래서 검사 하나를 따로 둔다.
+
+```bash
+npm --prefix web run build
+npm --prefix web run preview:cf -- --port 8791   # wrangler 가 dist 를 내준다
+node web/scripts/check-deploy.mjs
+```
+
+보안 헤더, `/pdf-assets`·`robots.txt` 가 실렸는지, 없는 주소가 404 인지, 그리고
+**CSP 를 켠 채로** 문서 → HWPX 가 끝까지 도는지와 바깥으로 나간 요청이 없는지를
+본다.
 
 ## 데스크톱 스크립트
 

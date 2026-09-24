@@ -14,3 +14,6 @@ web/public/fonts/
 .venv/
 __pycache__/
 *.pyc
+
+# wrangler 가 남기는 임시 자리 (dry-run 산출물·로컬 상태)
+.wrangler/
