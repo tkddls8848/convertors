@@ -1,0 +1,39 @@
+# 정적 호스팅이 응답에 붙일 헤더.
+#
+# 이 도구의 약속은 하나다 — **고른 파일이 이 컴퓨터를 벗어나지 않는다.** 그
+# 약속을 지키는 것이 아래 CSP 다. `connect-src 'self'` 가 바깥으로 나가는 연결을
+# 막고, `default-src 'none'` 이 나머지를 전부 닫는다. 화면이 파일을 어디로도
+# 올려 보내지 않는다는 말이 코드의 선의가 아니라 브라우저가 지키는 규칙이 된다.
+#
+# 'wasm-unsafe-eval' 이 있어야 브라우저가 WebAssembly 를 컴파일한다. PDF.js 가
+# 쪽을 그릴 때 wasm 을 쓰므로 이것이 없으면 PDF 기능이 통째로 죽는다.
+#
+# blob: 을 img-src 와 worker-src 에 연 이유는 산출물을 그 자리에서 내주기
+# 때문이다 — 만든 파일을 Blob URL 로 걸어 내려받게 하고, 표를 다루는 일꾼을
+# 번들이 Blob 으로 세운다. 어느 쪽도 바깥으로 나가지 않는다.
+#
+# X-Robots-Tag 는 robots.txt 와 짝이다. robots.txt 가 "받아 가지 말라"고 말한다면
+# 이쪽은 "이미 받아 갔더라도 색인하지 말라"고 말한다. 둘 다 있어야 한다 — robots.txt 를
+# 읽지 않고 링크를 타고 들어온 크롤러에게는 이 헤더가 유일한 신호이고, 반대로 이 헤더는
+# 응답을 받아 봐야 읽히므로 수집 자체를 막지는 못한다.
+#
+# 주석은 규칙 블록 밖(열 0)에만 둔다. 블록 안으로 들여쓰면 파서가 헤더 줄로 읽을 수 있고,
+# 그러면 그 아래 CSP 까지 함께 흔들린다.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Robots-Tag: noindex, nofollow, noarchive, noimageindex
+  X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'
+
+/index.html
+  Cache-Control: no-store
+
+# PDF.js 가 읽는 자료(cmap·기본 글꼴·wasm)와 심는 글꼴은 판본이 고정이라 배포마다
+# 바뀌지 않는다. 매번 다시 받지 않도록 재검증만 하게 둔다 — 바뀌지 않았으면 304 로 끝난다.
+/pdf-assets/*
+  Cache-Control: no-cache
+
+/fonts/*
+  Cache-Control: no-cache

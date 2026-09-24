@@ -1,0 +1,64 @@
+/* 셸 — 변환기가 서는 틀과 공통 색·글꼴.
+ *
+ * 도구의 스타일은 도구가 갖는다 (converters.css). 여기에는 **어느 도구에도
+ * 딸리지 않는 것만** 둔다 — 색 변수, 바탕 글꼴, 바깥 여백, 그리고 도구들이
+ * 그대로 쓰는 기본 요소(button·code·h1) 뿐이다.
+ */
+
+:root {
+  /* 다크 한 가지만 쓴다. 밝은 화면으로 되돌아가지 않는다. */
+  color-scheme: dark;
+  --bg: #12141a;
+  --surface: #1b1f27;
+  --text: #e7eaf0;
+  --muted: #99a1b3;
+  --line: #2f3542;
+  --accent: #7aa2f7;
+  --accent-text: #10131a;
+  --danger: #ff8f85;
+  --danger-bg: #3a1f1d;
+  --ok: #6fcf97;
+  accent-color: var(--accent);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.6 "Malgun Gothic", "맑은 고딕", system-ui, -apple-system, sans-serif;
+}
+
+/* 바깥 틀은 넓게 둔다. 안에서 읽기 좋은 너비로 좁히는 것은 .converters 가 한다. */
+.shell {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.6rem;
+}
+
+code {
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 0.92em;
+}
+
+button {
+  padding: 0.6rem 1.1rem;
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}

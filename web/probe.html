@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF → HWPX 호환성 검증</title>
+<body>
+  <h1>PDF → HWPX 한 쪽 검증</h1>
+  <p>개발 검증용입니다. 실제 한글 호환성 검증 전이며 서비스에 공개하지 않습니다.</p>
+  <p>파일은 브라우저에서 처리합니다. 그림으로 저장되어 글자와 표는 직접 편집할 수 없습니다.</p>
+  <label>PDF <input id="file" type="file" accept="application/pdf,.pdf"></label>
+  <label>쪽 <input id="page" type="number" min="1" value="1"></label>
+  <label>해상도 <select id="dpi"><option>150</option><option selected>200</option><option>300</option></select></label>
+  <label>추가 회전 <select id="rotation"><option>0</option><option>90</option><option>180</option><option>270</option></select></label>
+  <button id="convert" type="button">검증 파일 생성</button>
+  <button id="cancel" type="button" disabled>취소</button>
+  <p id="status" role="status"></p>
+  <a id="download" hidden>검증 HWPX 내려받기</a>
+  <script type="module" src="./src/hwpx-probe.ts"></script>
+</body>
+</html>

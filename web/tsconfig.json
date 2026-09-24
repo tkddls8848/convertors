@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    // vite.config.ts 가 node:url 과 node:fs 를 쓴다. 설정 파일도 같은 프로그램에 든다.
+    "types": ["vite/client", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "pdf-lib": ["./node_modules/pdf-lib"],
+      "@pdf-lib/fontkit": ["./node_modules/@pdf-lib/fontkit"],
+      "pdfjs-dist": ["./node_modules/pdfjs-dist"],
+      "pdfjs-dist/*": ["./node_modules/pdfjs-dist/*"],
+      "fflate": ["./node_modules/fflate"],
+      "qrcode-generator": ["./node_modules/qrcode-generator"],
+      "xlsx": ["./node_modules/xlsx"],
+      "xlsx/*": ["./node_modules/xlsx/*"]
+    },
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": [
+    "src",
+    "vite.config.ts"
+  ]
+}

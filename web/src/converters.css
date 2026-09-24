@@ -1,0 +1,519 @@
+/* 변환기 탭 전용 스타일. 색과 글꼴은 셸이 정한 변수를 그대로 쓴다
+   (web/src/styles.css). 여기에는 이 탭에만 있는 것만 둔다. */
+
+/* 본문은 읽기 좋은 너비로 **가운데** 세운다. 셸(.shell)은 76rem 까지 넓어서
+   auto 여백이 없으면 이 칸이 왼쪽에 붙어 버린다. */
+.converters {
+  max-width: 54rem;
+  margin: 0 auto;
+}
+
+/* 변환 고르기 — 한꺼번에 펼치지 않고 여기서 하나를 고른다. 갈래별로 묶는다.
+   칸 수는 화면 너비가 정한다. 좁은 화면에서는 저절로 한 줄에 하나가 된다. */
+.conv-choices {
+  margin: 0 0 1.5rem;
+}
+
+.conv-group + .conv-group {
+  margin-top: 1.25rem;
+}
+
+.conv-group__title {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.conv-group__choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.75rem;
+}
+
+.conv-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.conv-choice:hover {
+  border-color: var(--accent);
+}
+
+.conv-choice[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.conv-choice__title {
+  font-weight: 600;
+}
+
+/* 단추의 굵은 글씨를 물려받지 않게 제 굵기를 적는다. */
+.conv-choice__summary {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.conv-choice[aria-pressed='true'] .conv-choice__summary {
+  color: var(--text);
+}
+
+/* 아직 고르지 않았을 때. 빈 칸만 두면 고장으로 보인다. */
+.conv-empty {
+  margin: 0;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+
+/* 머리말 — 예전에는 탭 안의 한 칸이라 제목이 작았다. 이제 이것이 페이지의
+   머리말이므로 제목을 페이지 제목 크기로 세운다. */
+.conv-intro {
+  margin: 0 0 2rem;
+}
+
+.conv-intro h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.85rem;
+  letter-spacing: -0.01em;
+}
+
+.conv-intro p {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+.conv-intro p:last-child {
+  margin-bottom: 0;
+}
+
+.conv-intro__lede {
+  font-size: 1.05rem;
+}
+
+/* 이 도구를 고르는 이유가 이 한 줄이다. 머리말 안에서 먼저 눈에 들어오게 한다. */
+.conv-intro__promise {
+  padding: 0.7rem 0.95rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+}
+
+.conv-tool {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.conv-tool h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.conv-note {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+/* 파일 고르기 — 칸 전체가 단추다. 끌어다 놓기도 같은 자리에서 받는다. */
+.conv-drop {
+  display: block;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.conv-drop:hover,
+.conv-drop:focus-within,
+.conv-drop[data-over='yes'] {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.conv-drop input {
+  display: block;
+  margin: 0 auto 0.6rem;
+  max-width: 100%;
+}
+
+.conv-status {
+  min-height: 1.4rem;
+  margin: 0.75rem 0 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+.conv-status[data-tone='ok'] {
+  color: var(--ok);
+}
+
+.conv-status[data-tone='error'] {
+  padding: 0.6rem 0.75rem;
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-radius: 8px;
+}
+
+.conv-stats {
+  margin: 0.5rem 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.conv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+
+.conv-download {
+  padding: 0.5rem 1rem;
+  color: var(--accent-text);
+  background: var(--accent);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.conv-filename {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* 미리보기는 원문이다. 줄바꿈을 살리되 가로로 흐르지 않게 접는다. */
+.conv-preview {
+  max-height: 22rem;
+  margin: 0;
+  padding: 0.75rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 13px/1.5 ui-monospace, "D2Coding", Consolas, monospace;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.pdf-controls {
+  min-width: 0;
+  margin: 1rem 0;
+  padding: 0;
+  border: 0;
+}
+
+.pdf-controls legend { font-weight: 600; }
+.conv-pdf button, .pdf-outputs a {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+.conv-pdf button:not(.conv-download) {
+  background: var(--bg);
+  color: var(--text);
+}
+.conv-pdf button:disabled, .pdf-controls:disabled button {
+  opacity: 0.45;
+  cursor: default;
+}
+.conv-pdf :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pdf-pages {
+  list-style: none;
+  max-height: 28rem;
+  overflow: auto;
+  padding: 0;
+  margin: 0;
+}
+.pdf-pages li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.pdf-pages label { flex: 1; min-width: 0; overflow-wrap: anywhere; cursor: pointer; }
+.pdf-pages input { margin-right: 0.5rem; }
+.pdf-pages button { flex-shrink: 0; }
+#pdf-ranges {
+  flex: 1;
+  min-width: 8rem;
+  padding: 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.pdf-outputs a { color: var(--accent); overflow-wrap: anywhere; }
+.conv-tool select { max-width: 100%; padding: 0.4rem; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+.pdf-hwpx-warnings { max-height: 12rem; overflow: auto; color: var(--muted); font-size: 0.9rem; }
+.pdf-hwpx-warnings:empty { display: none; }
+.conv-tool button:disabled { opacity: 0.5; cursor: default; }
+.conv-tool h3 { margin: 1.25rem 0 0.35rem; font-size: 0.98rem; }
+
+/* 새 변환기들도 PDF 편집기와 같은 단추·목록 모양을 쓴다. 규칙을 한곳에 둔다. */
+.conv-images-pdf button, .conv-text-hwpx button, .conv-encoding button, .conv-zip button,
+.img-outputs a, .text-outputs a, .enc-outputs a, .zip-pack-outputs a, .zip-open-list a {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+.conv-images-pdf button:not(.conv-download), .conv-text-hwpx button:not(.conv-download),
+.conv-encoding button:not(.conv-download), .conv-zip button:not(.conv-download) {
+  background: var(--bg);
+  color: var(--text);
+}
+.img-outputs a, .text-outputs a, .enc-outputs a, .zip-pack-outputs a, .zip-open-list a {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.conv-images-pdf :focus-visible, .conv-text-hwpx :focus-visible,
+.conv-encoding :focus-visible, .conv-zip :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.img-controls, .enc-controls { min-width: 0; margin: 1rem 0; padding: 0; border: 0; }
+.img-controls legend, .enc-controls legend { font-weight: 600; }
+.img-list, .zip-pack-list, .zip-open-list {
+  list-style: none;
+  max-height: 22rem;
+  overflow: auto;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+.img-list li, .zip-pack-list li, .zip-open-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.img-list span, .zip-pack-list li, .zip-open-list li { min-width: 0; overflow-wrap: anywhere; }
+.img-list span { flex: 1; }
+.zip-pack-list li { justify-content: space-between; }
+
+/* 붙여 넣는 칸. 미리보기(.conv-preview)와 같은 글꼴이라 줄이 흐트러지지 않는다. */
+.conv-label { display: block; margin: 1rem 0 0.35rem; font-size: 0.92rem; color: var(--muted); }
+.conv-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.75rem;
+  resize: vertical;
+  font: 13px/1.5 ui-monospace, "D2Coding", Consolas, monospace;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.text-notes { max-height: 12rem; overflow: auto; color: var(--muted); font-size: 0.9rem; }
+.text-notes:empty { display: none; }
+
+.enc-detected { margin: 0.5rem 0; font-size: 0.92rem; }
+.enc-replace { display: block; margin: 0.5rem 0; }
+.enc-replace[hidden] { display: none; }
+.enc-preview { margin-top: 0.75rem; }
+
+@media (max-width: 480px) {
+  .pdf-pages li { flex-wrap: wrap; }
+  .pdf-pages label { flex-basis: 100%; }
+  .img-list li, .zip-pack-list li { flex-wrap: wrap; }
+}
+
+/* --- PDF 글자 고치기 -------------------------------------------------------
+   쪽 그림 위에 글자 조각 상자를 겹친다. 상자가 그림을 가리면 무엇을 고치는지
+   볼 수 없으므로, 평소에는 테두리만 흐리게 두고 손이 닿을 때만 드러낸다. */
+
+/* 글자 조각 상자(.edit-span)도 단추이지만 **화면의 단추가 아니라 쪽 위의 자리**다.
+   여기서 빼지 않으면 조각마다 불투명한 상자가 얹혀 쪽이 통째로 먹칠된 것처럼
+   보인다 — 무엇을 고치는지 보이지 않으면 이 화면은 쓸모가 없다. */
+.conv-pdf-edit button:not(.edit-span), .edit-outputs a {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+.conv-pdf-edit button:not(.conv-download):not(.edit-span) { background: var(--bg); color: var(--text); }
+.conv-pdf-edit :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.edit-outputs a { color: var(--accent); overflow-wrap: anywhere; }
+
+.edit-caveats { margin: 0 0 1rem; padding-left: 1.1rem; }
+.edit-caveats li { margin-bottom: 0.35rem; }
+
+.edit-controls { min-width: 0; margin: 1rem 0; padding: 0; border: 0; }
+.edit-controls legend { font-weight: 600; }
+.edit-controls:disabled button { opacity: 0.45; cursor: default; }
+.edit-page { font-variant-numeric: tabular-nums; }
+
+/* 쪽 그림. 좁은 화면에서도 가로로 흐르지 않게 칸 안에서 스크롤한다. */
+.edit-stage {
+  position: relative;
+  max-height: 34rem;
+  margin: 0.75rem 0 0;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.edit-stage canvas { display: block; }
+.edit-spans { position: absolute; inset: 0; }
+
+.edit-span {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.edit-span:hover, .edit-span:focus-visible {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-color: var(--accent);
+}
+/* 이미 고친 자리는 한눈에 구분된다 — 같은 곳을 두 번 고치면 겹쳐 쓰인다. */
+.edit-span[data-done='yes'] {
+  background: color-mix(in srgb, var(--ok) 20%, transparent);
+  border-color: var(--ok);
+}
+
+.edit-hint { margin: 0.5rem 0 0; }
+.edit-form { margin: 1rem 0; padding: 1rem; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.edit-form h3 { margin-top: 0; }
+.edit-form input[type='number'] { width: 5.5rem; padding: 0.4rem; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.edit-form input[type='color'] { width: 2.75rem; height: 2rem; padding: 0; background: none; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.edit-original { margin: 0 0 0.25rem; overflow-wrap: anywhere; }
+.edit-fit { margin: 0.5rem 0 0; }
+/* 원본 글꼴로 쓸 수 없는 글자가 있을 때. 저장하고 나서 알면 늦으므로 눈에 띄게 둔다. */
+.edit-fit[data-tone='error'] { color: var(--danger); }
+
+.edit-list { max-height: 16rem; overflow: auto; margin: 0.5rem 0; padding-left: 1.4rem; }
+.edit-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
+.edit-list li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.edit-list li button { flex-shrink: 0; }
+
+.edit-font-add { margin-top: 1rem; }
+.edit-warnings { max-height: 12rem; overflow: auto; }
+.edit-warnings:empty { display: none; }
+
+@media (max-width: 480px) {
+  .edit-list li { flex-wrap: wrap; }
+  .edit-form input[type='number'] { width: 4.5rem; }
+}
+
+/* --- 뒤에 들인 도구들(kit.ts) ------------------------------------------------
+   도구마다 규칙을 따로 적지 않고 `.conv-kit` 하나에 모은다. 앞선 화면들과 같은
+   단추·목록·입력 모양이다. */
+.conv-kit button, .conv-kit .conv-outputs a {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+.conv-kit button:not(.conv-download) { background: var(--bg); color: var(--text); }
+.conv-kit :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.conv-kit .conv-outputs a { color: var(--accent); overflow-wrap: anywhere; }
+.conv-kit fieldset { min-width: 0; margin: 1rem 0; padding: 0; border: 0; }
+.conv-kit legend { font-weight: 600; margin-bottom: 0.35rem; }
+.conv-kit fieldset:disabled button { opacity: 0.45; cursor: default; }
+.conv-kit input[type='text'], .conv-kit input[type='number'], .conv-kit input[type='date'],
+.conv-kit input[type='url'], .conv-kit input[type='email'], .conv-kit input[type='tel'],
+.conv-kit input[type='password'], .conv-kit input:not([type]) {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 0.45rem 0.6rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+.conv-kit input[type='number'] { width: 7rem; }
+.conv-kit input[type='color'] { width: 2.75rem; height: 2rem; padding: 0; background: none; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.conv-kit input[type='range'] { vertical-align: middle; }
+.conv-kit .conv-wide { width: 100%; }
+
+/* 줄마다 이름표와 값. 좁은 화면에서는 위아래로 선다. */
+.conv-form { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 0.75rem; align-items: center; margin: 0.75rem 0; }
+.conv-form > label { color: var(--muted); font-size: 0.92rem; }
+.conv-form > :is(input, select, textarea, div) { min-width: 0; }
+
+.conv-list { list-style: none; max-height: 22rem; overflow: auto; padding: 0; margin: 0.5rem 0; }
+.conv-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--line); }
+.conv-list li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.conv-list li > button { flex-shrink: 0; }
+
+/* 결과 표. 숫자는 자리를 맞춘다. 넓으면 칸 안에서 가로로 민다. */
+.conv-table-wrap { max-width: 100%; overflow-x: auto; margin: 0.75rem 0; }
+.conv-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.conv-table th, .conv-table td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.conv-table th { color: var(--muted); font-weight: 600; }
+.conv-table td.num, .conv-table th.num { text-align: right; }
+.conv-table code { font-size: 0.85rem; word-break: break-all; }
+
+/* 크게 보여 줄 값 하나 — 금액 표기, 계산 결과. 눌러서 복사한다. */
+.conv-result { margin: 0.75rem 0; padding: 0.9rem 1rem; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+.conv-result dl { display: grid; grid-template-columns: max-content 1fr auto; gap: 0.5rem 0.75rem; align-items: center; margin: 0; }
+.conv-result dt { color: var(--muted); font-size: 0.9rem; }
+.conv-result dd { margin: 0; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.conv-result:empty { display: none; }
+
+.conv-ok { color: var(--ok); }
+.conv-bad { color: var(--danger); }
+.conv-notes { max-height: 12rem; overflow: auto; margin: 0.5rem 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.9rem; }
+.conv-notes:empty { display: none; }
+
+/* 쪽 미리보기 — 서명·도장을 놓을 자리를 눌러 고른다. */
+.conv-canvas-stage { position: relative; display: inline-block; max-width: 100%; margin: 0.75rem 0; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.conv-canvas-stage canvas { display: block; max-width: 100%; height: auto; }
+
+/* 텍스트 비교 */
+.diff-view { max-height: 32rem; overflow: auto; margin: 0.75rem 0; font: 13px/1.5 ui-monospace, "D2Coding", Consolas, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+.diff-view table { width: 100%; border-collapse: collapse; }
+.diff-view td { padding: 0 0.5rem; vertical-align: top; white-space: pre-wrap; word-break: break-word; }
+.diff-view td.diff-no { width: 1%; color: var(--muted); text-align: right; user-select: none; white-space: nowrap; }
+.diff-view tr.diff-del { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.diff-view tr.diff-add { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.diff-view tr.diff-skip td { color: var(--muted); text-align: center; font-style: italic; }
+.diff-view del { background: color-mix(in srgb, var(--danger) 30%, transparent); text-decoration: line-through; }
+.diff-view ins { background: color-mix(in srgb, var(--ok) 32%, transparent); text-decoration: none; }
+
+/* QR 미리보기는 늘 흰 바탕이다. 어두운 화면에서도 찍을 수 있어야 한다. */
+.qr-preview { display: inline-block; margin: 0.75rem 0; padding: 0.5rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+.qr-preview svg, .qr-preview img { display: block; width: min(16rem, 70vw); height: auto; }
+
+@media (max-width: 480px) {
+  .conv-form { grid-template-columns: 1fr; }
+  .conv-result dl { grid-template-columns: 1fr auto; }
+  .conv-result dt { grid-column: 1 / -1; }
+  .conv-list li { flex-wrap: wrap; }
+}
