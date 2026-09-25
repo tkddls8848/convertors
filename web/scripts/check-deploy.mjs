@@ -9,7 +9,7 @@
  * 그래서 이 검사는 wrangler 가 dist 를 내주는 자리를 본다.
  *
  *   npm --prefix web run build
- *   npm --prefix web run preview:cf -- --port 8791
+ *   npm --prefix web run preview:cf -- --port 18700
  *   node web/scripts/check-deploy.mjs
  *
  * 배포 주소를 넣고 빌드했다면 검사에도 같은 값을 넘겨라. 그래야 canonical·og:url·
@@ -32,7 +32,12 @@ const require = createRequire(new URL('../package.json', import.meta.url));
 const { chromium } = require('playwright');
 const { unzipSync, strFromU8 } = require('fflate');
 
-const base = process.env.DEPLOY_TEST_URL ?? 'http://127.0.0.1:8791';
+// 포트를 18xxx 대에서 고른다. 윈도우는 Hyper-V·WinNAT 용으로 TCP 포트 100개씩을
+// 통째로 예약해 두는데(`netsh interface ipv4 show excludedportrange protocol=tcp`)
+// 8000~13000 대가 자주 걸린다. 예약된 포트에 묶으면 wrangler 가 EACCES 로 죽고,
+// 그 오류는 설정이 틀린 것처럼 보여서 한참 헤매게 된다. 리눅스 CI 는 무관하지만
+// 기본값은 **양쪽에서 다 되는 값**이어야 한다.
+const base = process.env.DEPLOY_TEST_URL ?? 'http://127.0.0.1:18700';
 const out = new URL('../../.cache/deploy-check/', import.meta.url);
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });

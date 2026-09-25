@@ -335,7 +335,7 @@ npm --prefix web run deploy            # 또는 deploy:staging
 
 ```bash
 npm --prefix web run build
-npm --prefix web run preview:cf -- --port 8791   # wrangler 가 dist 를 내준다
+npm --prefix web run preview:cf -- --port 18700  # wrangler 가 dist 를 내준다
 node web/scripts/check-deploy.mjs
 ```
 

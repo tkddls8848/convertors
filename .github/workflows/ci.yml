@@ -90,10 +90,10 @@ jobs:
       - name: 배포 모양에서 헤더와 자산 검사
         run: |
           mkdir -p .cache
-          npx --prefix web wrangler dev --env="" --port 8791 --ip 127.0.0.1 --config web/wrangler.jsonc > .cache/wrangler.log 2>&1 &
+          npx --prefix web wrangler dev --env="" --port 18700 --ip 127.0.0.1 --config web/wrangler.jsonc > .cache/wrangler.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          curl --fail --silent --show-error --retry 60 --retry-all-errors --retry-delay 1 --retry-max-time 120 --max-time 2 http://127.0.0.1:8791/ > /dev/null
+          curl --fail --silent --show-error --retry 60 --retry-all-errors --retry-delay 1 --retry-max-time 120 --max-time 2 http://127.0.0.1:18700/ > /dev/null
           node web/scripts/check-deploy.mjs
       - uses: actions/upload-artifact@v5
         if: failure()
