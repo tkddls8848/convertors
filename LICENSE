@@ -1,0 +1,117 @@
+Convertors — 독점 라이선스 (상용 비공개)
+Convertors — Proprietary License (Commercial, Source-Available)
+
+Copyright (c) 2026 tkddls8848 <tkddls8848@gmail.com>
+All rights reserved. / 모든 권리를 보유합니다.
+
+
+================================================================================
+한국어 (정본)
+================================================================================
+
+1. 이 소프트웨어와 그에 딸린 문서(이하 "본 소프트웨어")의 저작권은 위 저작권자에게
+   있습니다. 모든 권리를 보유합니다.
+
+2. 소스가 공개되어 있다는 사실은 이용 허락이 아닙니다.
+   이 저장소는 누구나 읽을 수 있는 자리에 있습니다. 그것은 이 도구가 고른 파일을
+   바깥으로 보내지 않는다는 약속을 코드로 확인받기 위한 것이지, 복제·수정·재배포를
+   허락한 것이 아닙니다. 읽을 수 있다는 것과 써도 된다는 것은 다릅니다.
+
+3. 저작권자의 사전 서면 허락 없이는 다음을 할 수 없습니다.
+   가. 본 소프트웨어의 전부 또는 일부를 복제·배포·전송·대여·판매하는 행위
+   나. 본 소프트웨어를 수정·번안·번역하거나 이를 바탕으로 2차적 저작물을 만드는 행위
+   다. 본 소프트웨어를 역컴파일·역어셈블·리버스 엔지니어링하는 행위
+       (준거법이 강행규정으로 허용하는 범위는 제외합니다)
+   라. 본 소프트웨어를 제3자에게 서비스로 제공하거나 다른 제품에 포함하는 행위
+   마. 본 저작권 표시와 이 라이선스 문구를 제거하거나 가리는 행위
+
+4. 허락하는 것.
+   개인이 본 저장소를 내려받아 읽고, 자기 기계 안에서 동작을 확인하기 위해
+   빌드하고 실행하는 것은 허락합니다. 그 결과물을 배포하는 것은 허락하지 않습니다.
+
+5. 제3자 구성요소는 이 라이선스가 적용되지 않습니다.
+   본 소프트웨어는 각자의 라이선스를 따르는 제3자 구성요소(오픈소스 라이브러리,
+   글꼴, PDF.js 가 함께 싣는 자료 등)를 포함하거나 배포합니다. 그 구성요소에는
+   이 라이선스가 아니라 **각자의 라이선스가 그대로 적용되며**, 위 제3항의 제한은
+   그 구성요소에 미치지 않습니다. 두 문서가 어긋나면 해당 구성요소에 대해서는
+   그 구성요소의 라이선스가 우선합니다.
+
+   어떤 구성요소가 어떤 라이선스를 따르는지는 저장소 루트의
+   `THIRD-PARTY-NOTICES.md` 와 `web/public/licenses/` 에 있습니다. 그 목록은
+   `node web/scripts/gen_licenses.mjs` 가 실제 설치본에서 만들어 냅니다.
+
+6. 보증하지 않습니다.
+   본 소프트웨어는 "있는 그대로" 제공되며, 상품성·특정 목적 적합성·비침해를
+   포함한 어떠한 명시적·묵시적 보증도 하지 않습니다.
+
+7. 책임을 지지 않습니다.
+   준거법이 허용하는 최대 범위에서, 저작권자는 본 소프트웨어의 사용 또는 사용
+   불능으로 인한 어떠한 손해(직접·간접·부수적·특별·결과적 손해, 데이터 손실,
+   영업 손실을 포함합니다)에 대해서도 책임을 지지 않습니다.
+
+8. 준거법과 관할.
+   이 라이선스는 대한민국 법을 준거법으로 하며, 분쟁은 서울중앙지방법원을
+   제1심 전속 관할 법원으로 합니다.
+
+9. 문의.
+   위에 적지 않은 이용을 원하면 tkddls8848@gmail.com 으로 문의하십시오.
+
+
+================================================================================
+ENGLISH (translation — the Korean text above governs)
+================================================================================
+
+1. This software and its accompanying documentation (the "Software") are
+   copyrighted by the copyright holder named above. All rights are reserved.
+
+2. Source availability is not a grant of license.
+   This repository is readable by anyone. That is so the promise — that files
+   you pick never leave your computer — can be verified in the code. It is not
+   permission to copy, modify, or redistribute. Being able to read the Software
+   is not the same as being allowed to use it.
+
+3. Without the prior written permission of the copyright holder, you may not:
+   a. reproduce, distribute, transmit, lend, or sell the Software in whole or
+      in part;
+   b. modify, adapt, translate, or create derivative works from the Software;
+   c. decompile, disassemble, or reverse engineer the Software, except to the
+      extent that applicable law expressly forbids this restriction;
+   d. provide the Software to third parties as a service, or incorporate it
+      into another product;
+   e. remove or obscure this copyright notice or the text of this license.
+
+4. What is permitted.
+   You may download this repository, read it, and build and run it on your own
+   machine to verify how it behaves. You may not distribute the result.
+
+5. Third-party components are NOT covered by this license.
+   The Software includes and distributes third-party components (open-source
+   libraries, fonts, and data that PDF.js ships alongside it) that are governed
+   by their own licenses. Those components remain subject to **their own
+   licenses**, not this one, and the restrictions in Section 3 do not apply to
+   them. Where this license and a component's license conflict, the component's
+   license controls for that component.
+
+   Which component carries which license is recorded in `THIRD-PARTY-NOTICES.md`
+   at the repository root and in `web/public/licenses/`. That inventory is
+   generated from the actual installed packages by
+   `node web/scripts/gen_licenses.mjs`.
+
+6. NO WARRANTY.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+7. LIMITATION OF LIABILITY.
+   TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE COPYRIGHT HOLDER SHALL
+   NOT BE LIABLE FOR ANY DAMAGES WHATSOEVER (INCLUDING DIRECT, INDIRECT,
+   INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES, LOSS OF DATA, OR LOSS OF
+   BUSINESS) ARISING OUT OF THE USE OF OR INABILITY TO USE THE SOFTWARE.
+
+8. Governing law and venue.
+   This license is governed by the laws of the Republic of Korea. The Seoul
+   Central District Court shall have exclusive jurisdiction as the court of
+   first instance over any dispute arising from it.
+
+9. Inquiries.
+   For any use not described above, contact tkddls8848@gmail.com.

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="변환기">
+  <rect width="32" height="32" rx="7" fill="#12141a"/>
+  <!-- 문서. 속을 옅게 채워야 16px 로 줄어도 덩어리로 보인다 -->
+  <path d="M6.6 5.6h4.7l4.3 4.3v14.5a2 2 0 0 1-2 2H6.6a2 2 0 0 1-2-2V7.6a2 2 0 0 1 2-2z"
+        fill="#7aa2f7" fill-opacity=".22" stroke="#7aa2f7" stroke-width="1.9" stroke-linejoin="round"/>
+  <!-- 접힌 모서리 -->
+  <path d="M11.3 5.6v4.3h4.3" fill="none" stroke="#7aa2f7" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- 바뀐다 -->
+  <path d="M19.2 16h7.6M23.4 12.6 26.8 16l-3.4 3.4" fill="none" stroke="#7aa2f7"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

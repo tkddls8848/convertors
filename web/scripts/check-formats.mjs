@@ -1,12 +1,14 @@
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 const require = createRequire(new URL('../package.json', import.meta.url));
-const { chromium } = require('playwright');
+const browserName = process.env.CHECK_BROWSER ?? 'chromium';
+assert.ok(['chromium', 'firefox', 'webkit'].includes(browserName), `지원하지 않는 검사 브라우저입니다: ${browserName}`);
+const browserType = require('playwright')[browserName];
 const XLSX = require('xlsx');
 const { unzipSync, strFromU8 } = require('fflate');
 const { PDFDocument } = require('pdf-lib');
 const base = process.env.FORMAT_TEST_URL ?? 'http://127.0.0.1:18574';
-const browser = await chromium.launch({ headless: true });
+const browser = await browserType.launch({ headless: true });
 try {
   const page = await browser.newPage(); const errors = [], external = [];
   page.on('pageerror', e => errors.push(e.message));

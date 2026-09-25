@@ -14,6 +14,29 @@
   margin: 0 0 1.5rem;
 }
 
+.conv-choices__title { margin: 0 0 0.75rem; font-size: 1.05rem; }
+
+/* 입력칸·링크·펼치기 단추도 같은 표시로 키보드의 현재 자리를 알려 준다. */
+.converters :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.conv-footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.9rem; }
+.conv-footer a { color: var(--accent); overflow-wrap: anywhere; }
+.conv-footer summary { cursor: pointer; width: fit-content; }
+.conv-footer li { margin: 0.35rem 0; }
+
+/* 움직임을 줄이려는 설정은 뒤에 더할 효과에도 그대로 적용한다. */
+@media (prefers-reduced-motion: reduce) {
+  .converters *, .converters *::before, .converters *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 어두운 바탕은 유지하고 경계선만 밝혀 칸을 구별하기 쉽게 한다. */
+@media (prefers-contrast: more) {
+  .converters { --line: #99a1b3; }
+}
+
 .conv-group + .conv-group {
   margin-top: 1.25rem;
 }

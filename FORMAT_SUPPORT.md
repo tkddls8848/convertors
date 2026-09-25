@@ -59,7 +59,7 @@ Office 원본 배치를 보존하는 PDF·이미지 변환은 추가하지 않�
 
 SheetJS CE 0.20.3은 공식 CDN 고정 버전 tarball과 lockfile integrity를 사용한다.
 Apache-2.0이며 유료 Pro 기능은 사용하지 않는다. 라이선스 사본은
-`web/public/licenses/SheetJS.LICENSE`에 있다. 기존 fflate(MIT),
+`web/public/licenses/xlsx.LICENSE`에 있다. 기존 fflate(MIT),
 pdfjs-dist(Apache-2.0), HWPX 작성기를 재사용한다. jsdom은 테스트 전용이다.
 QR 코드 도구의 qrcode-generator(MIT) 사본은 `web/public/licenses/qrcode-generator.LICENSE`에 있다.
 

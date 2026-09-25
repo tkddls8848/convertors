@@ -44,6 +44,7 @@ export function qrTool(): HTMLElement {
 
     <fieldset data-kind="text">
       <legend>텍스트·주소</legend>
+      <label for="qr-text" class="conv-label">QR 코드에 담을 글이나 주소</label>
       <textarea id="qr-text" class="conv-input conv-wide" rows="4" spellcheck="false" placeholder="https://… 또는 아무 글"></textarea>
     </fieldset>
 

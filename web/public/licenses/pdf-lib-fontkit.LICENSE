@@ -1,0 +1,18 @@
+@pdf-lib/fontkit 1.1.1
+SPDX: MIT
+저작권자(package.json): Andrew Dillon <andrew.dillon.j@gmail.com>
+기여자(package.json): Devon Govett <devongovett@gmail.com> (http://badassjs.com/)
+프로젝트: https://github.com/Hopding/fontkit
+
+------------------------------------------------------------------------------
+상류가 라이선스 전문을 배포하지 않는다. 아래는 배포본에서 확인한 저작권 고지
+원문이며, 전문은 위 주소에서 확인할 수 있다.
+
+전문을 이쪽에서 대신 적어 넣지 않는다. 기억이나 템플릿에서 옮겨 적은 전문은
+상류가 실제로 건 조건과 다를 수 있고, 어긋난 고지는 없느니만 못하다.
+
+확인한 자리: README.md 의 라이선스 절
+------------------------------------------------------------------------------
+
+## License
+[MIT](https://choosealicense.com/licenses/mit/)

@@ -12,7 +12,9 @@ import { fileURLToPath } from 'node:url';
 import { mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const require = createRequire(new URL('../package.json', import.meta.url));
-const { chromium } = require('playwright');
+const browserName = process.env.CHECK_BROWSER ?? 'chromium';
+assert.ok(['chromium', 'firefox', 'webkit'].includes(browserName), `지원하지 않는 검사 브라우저입니다: ${browserName}`);
+const browserType = require('playwright')[browserName];
 const { PDFDocument, rgb } = require('pdf-lib');
 const { unzipSync, strFromU8 } = require('fflate');
 const base = process.env.HWPX_TEST_URL ?? 'http://127.0.0.1:18574';
@@ -39,7 +41,7 @@ const TOOLS = {
   qr: 'QR 코드 만들기',
 };
 
-const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
+const browser = await browserType.launch({ headless: true, ...(browserName === 'chromium' && process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}) });
 try {
   const page = await browser.newPage();
   // 이 컨테이너의 Chromium 은 pdfjs 6 이 기대하는 Map.prototype.getOrInsertComputed 가 없다.

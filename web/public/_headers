@@ -12,17 +12,17 @@
 # 때문이다 — 만든 파일을 Blob URL 로 걸어 내려받게 하고, 표를 다루는 일꾼을
 # 번들이 Blob 으로 세운다. 어느 쪽도 바깥으로 나가지 않는다.
 #
-# X-Robots-Tag 는 robots.txt 와 짝이다. robots.txt 가 "받아 가지 말라"고 말한다면
-# 이쪽은 "이미 받아 갔더라도 색인하지 말라"고 말한다. 둘 다 있어야 한다 — robots.txt 를
-# 읽지 않고 링크를 타고 들어온 크롤러에게는 이 헤더가 유일한 신호이고, 반대로 이 헤더는
-# 응답을 받아 봐야 읽히므로 수집 자체를 막지는 못한다.
+# X-Robots-Tag 는 여기에 없다. 사내용 도구였을 때는 noindex 가 있었지만 이제 공개
+# 제품이라 검색에 떠야 한다. 그 헤더가 한 줄이라도 남아 있으면 robots.txt 를 아무리
+# 열어도 색인되지 않는다 — 크롤러는 받아 온 응답의 헤더를 먼저 믿기 때문에, 헤더와
+# robots.txt 가 어긋나면 헤더가 이긴다. AI 학습용 수집을 막는 일은 robots.txt 의
+# 이름별 목록이 계속 맡는다. 검색을 여는 것과 말뭉치에 들어가는 것은 별개다.
 #
 # 주석은 규칙 블록 밖(열 0)에만 둔다. 블록 안으로 들여쓰면 파서가 헤더 줄로 읽을 수 있고,
 # 그러면 그 아래 CSP 까지 함께 흔들린다.
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
-  X-Robots-Tag: noindex, nofollow, noarchive, noimageindex
   X-Frame-Options: DENY
   Cross-Origin-Opener-Policy: same-origin
   Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'

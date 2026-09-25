@@ -1,24 +1,31 @@
-# 변환기 (문서·이미지·텍스트)
+# 변환기 (문서·PDF·이미지·텍스트)
 
-**이 저장소는 변환기만 한다.** 예전에는 견적서 작성기와 한 화면에 탭으로 같이
-서 있었지만, 서로를 부르지 않는 기능이 한 배포에 묶여 있을 이유가 없어 떼어
-냈다. 셸(`web/index.html` · `web/src/main.ts`)도 이제 이 저장소가 갖는다 —
-하는 일은 빈 칸을 내주고 `panel.ts` 의 `mountConverters` 하나를 부르는 것뿐이다.
+**문서·PDF·이미지·표를 브라우저 안에서 바꾸는 도구 25개.** 규격서·제안서·견적 자료를
+다루다 보면 HWPX·CP949·부가세·영업일 같은 것이 매번 걸리는데, 그런 파일일수록 낯선
+변환 사이트에 올리기 어렵다. 이 도구는 **고른 파일을 이 컴퓨터 밖으로 내보내지 않는다.**
 
-**문서·전자책 변환과 스프레드시트 변환을 추가했다.** DOCX·ODT·EPUB·PDF 등의
-본문을 10가지 형식으로 저장하고, Excel·ODS·CSV·JSON 등을 12가지 형식으로
-변환한다. 파일은 브라우저에서 처리한다. [지원 형식·한도·검증](FORMAT_SUPPORT.md).
+설치할 것도, 가입할 것도, 올릴 곳도 없다. 그 약속은 선의가 아니라
+`web/public/_headers` 의 CSP(`connect-src 'self'`)가 **브라우저에게** 지키게 한다 —
+받을 서버가 아예 없고(`wrangler.jsonc` 에 Worker 스크립트가 없다), 바깥으로 나가는
+연결은 브라우저가 막는다. 예전에 HWP(5.0) → PDF 에만 변환 서버가 있었지만 공개할 수
+없어 내렸다. 그 하나 때문에 도구 전체의 약속이 약해졌다.
 
-**사무 도구 16개를 더 들였다** — PDF 워터마크·쪽번호·서명·모아찍기·문서 정보,
-이미지 형식 바꾸기, 텍스트 비교, 글자 수, 개인정보 가리기, 금액 한글 표기, 부가세,
-날짜·영업일, 사업자번호 검증, 표 합치기·나누기, 파일 이름 일괄 바꾸기, 해시, QR.
+도구는 다섯 갈래다 — **문서 형식 변환** 5(문서·전자책, 스프레드시트, 텍스트·Markdown
+→ HWPX, HWPX → Markdown, 인코딩), **PDF** 7(편집기, 글자 고치기, 워터마크·쪽번호,
+서명·도장, 모아찍기, 문서 정보, 이미지 → PDF), **이미지·텍스트** 4, **사무 계산**
+4(금액 한글 표기, 부가세, 날짜·영업일, 사업자번호), **파일** 5(ZIP, 표 합치기,
+이름 바꾸기, 해시, QR). 무엇을 어디까지 하는지는 아래 [지금 되는 것](#지금-되는-것)
+표에 **못 하는 것과 함께** 적었다.
 
-**고른 파일은 이 컴퓨터를 벗어나지 않는다** — 모든 변환이 브라우저 안에서 끝나고
-어디로도 올려 보내지 않는다. HWP(5.0) → PDF 에만 있던 변환 서버는 공개할 수 없어
-내렸다. 그 약속은 선의가 아니라 `web/public/_headers` 의 CSP(`connect-src 'self'`)가
-지킨다.
+**쓰는 브라우저**: Chrome · Firefox · Safari 의 최신판. 세 엔진(Chromium 153 ·
+Firefox 155 · WebKit 26.6)에서 화면 검사 12회가 전부 통과했다. 다만 그 Safari 는
+**Playwright 의 WebKit 이지 실제 Safari 기기가 아니다** — macOS·iOS 실기에서의 동작을
+보장하는 결과가 아니라는 뜻이다. 기록은 `.cache/cross-browser-report.md` 에 있다.
+Internet Explorer 는 받지 않는다.
 
-[구현 계획](IMPLEMENTATION_PLAN.md) · [검증 기록·재현 방법](VALIDATION.md)
+[지원 형식·한도·검증](FORMAT_SUPPORT.md) · [바뀐 것](CHANGELOG.md) ·
+[취약점 신고](SECURITY.md) · [구현 계획](IMPLEMENTATION_PLAN.md) ·
+[검증 기록·재현 방법](VALIDATION.md)
 
 ```text
 convertors/
@@ -87,20 +94,28 @@ convertors/
     hwpx-probe.ts     한 쪽짜리 최소 HWPX 생성기 (probe.html, 개발 검증용)
   web/wrangler.jsonc  Cloudflare 배포 정의. `main` 이 없다 — 올라가는 것은 자산뿐이다
   web/scripts/
-    check-converters.mjs    실제 Chromium 으로 공개 화면을 조작해 산출물을 검사
+    검사 — 앞의 넷은 CHECK_BROWSER 로 chromium·firefox·webkit 을 고를 수 있다
+    check-converters.mjs    실제 브라우저로 공개 화면을 조작해 산출물을 검사
     check-formats.mjs       문서·스프레드시트 변환을 형식마다 열어 내용을 확인
     check-hwpx.mjs          한 쪽 HWPX 의 패키지 구조·쪽 크기·PNG 픽셀 검사
-    check-office-tools.mjs  뒤에 들인 도구 16개를 실제 Chromium 으로 열고 산출물을 검사
+    check-office-tools.mjs  뒤에 들인 도구 16개를 실제로 열고 산출물을 검사
+    check-a11y.mjs          이름 없는 조작 요소·건너뛴 제목 단계·모자란 대비를 찾는다
+    check-bundle.mjs        첫 화면이 받는 JS 를 재고 예산을 넘으면 죽는다
     check-deploy.mjs        배포 모양 그대로(CSP·헤더·자산·404) 검사한다
     cf_build.sh             Cloudflare 빌드 단계 — npm ci → 글꼴 → dist
     cf_deploy.sh            Cloudflare 배포 단계 — wrangler 에 인자를 넘긴다
     fetch_fonts.py          심을 한글 글꼴을 npm 에서 받아 web/public/fonts/ 로
+    gen_licenses.mjs        node_modules 에서 제3자 고지를 뽑는다 (손으로 적지 않는다)
+    gen-icons.mjs           파비콘·공유 미리보기 그림을 굽는다
   web/public/
     _headers          CSP — 파일이 나가지 않는다는 약속을 브라우저가 지키게 한다
-    robots.txt        사내용 도구다. 색인도 AI 학습용 수집도 원하지 않는다
+    robots.txt        검색에는 열려 있고 AI 학습·요약용 수집에는 닫혀 있다
+    licenses/         제3자 라이선스 원문. 화면 아래 고지가 이것을 가리킨다
+    favicon.svg · og.png   탭 아이콘과 공유 미리보기
   desktop/
     hwp-to-hwpx.ps1   한글 COM 으로 .hwp → .hwpx (Windows + 한글 설치 필요)
     verify-hwpx.ps1   만든 HWPX 를 한글에서 열어 본다
+  LICENSE · THIRD-PARTY-NOTICES.md · SECURITY.md · CHANGELOG.md
 ```
 
 ## 원본 글꼴을 그대로 쓴다
@@ -215,9 +230,9 @@ HWPX → Markdown 화면이 그 사실과 함께 데스크톱 스크립트를 �
 - **`src/` 바깥에 공유 코드를 두지 않는다.** 여러 도구가 함께 쓰는 것은 `kit.ts`
   처럼 이 폴더 안에 둔다 — 밖에 둔 공유부는 거기 생긴 문제 하나를 여러 도구의
   장애로 번지게 한다.
-- 고른 도구만 받아 온다. 도구가 서른 가까이 되고 PDF 라이브러리가 무거워서,
-  QR 하나 만들려는 사람이 그것을 다 내려받을 이유가 없다 (`panel.ts` 의
-  `import()`).
+- 고른 도구만 받아 온다. 도구가 스물다섯이고 PDF 라이브러리가 무거워서, QR 하나
+  만들려는 사람이 그것을 다 내려받을 이유가 없다 (`panel.ts` 의 `import()`).
+  이 약속은 말로만 두지 않고 `check-bundle.mjs` 가 번번이 잰다.
 - **무엇을 보장하고 무엇을 보장하지 못하는지 화면에 적는다.** 변환 품질은
   입력에 따라 달라지므로, 그것을 숨기면 신뢰를 잃는다.
 - **파일을 브라우저 밖으로 내보내지 않는다.** 한 번 예외(HWP→PDF 변환 서버)를
@@ -231,7 +246,7 @@ HWPX → Markdown 화면이 그 사실과 함께 데스크톱 스크립트를 �
 
 ```bash
 npm --prefix web install       # 처음 한 번
-npm --prefix web test          # web/src/*.test.ts 전부
+npm --prefix web test          # web/src/*.test.ts — 파일 30개, 413건
 npm --prefix web run typecheck
 ```
 
@@ -242,7 +257,24 @@ npm --prefix web run dev -- --host 127.0.0.1 --port 18574
 node web/scripts/check-converters.mjs
 node web/scripts/check-formats.mjs
 node web/scripts/check-office-tools.mjs
+node web/scripts/check-hwpx.mjs
+A11Y_TEST_URL=http://127.0.0.1:18574 node web/scripts/check-a11y.mjs
 ```
+
+엔진을 바꾸려면 `CHECK_BROWSER=firefox`(또는 `webkit`)를 앞에 붙인다. 없으면
+Chromium 으로 돈다.
+
+번들 예산 검사는 개발 서버가 아니라 **빌드한 결과**를 봐야 해서 따로 돈다. 제가
+`.cache/bundle-check/dist` 로 굽고 제가 내주므로 `web/dist` 를 건드리지 않는다.
+
+```bash
+node web/scripts/check-bundle.mjs
+```
+
+첫 화면이 받는 JS 가 예산을 넘거나, fontkit·PDF.js·SheetJS 워커 같은 무거운 것이
+첫 화면에 딸려오면 **0 이 아닌 값으로 죽는다.** "고른 도구만 받아 온다"는 설계가
+조용히 무너지면 화면에는 아무 자국도 남지 않고 처음 온 사람만 느려지기 때문에,
+사람 눈이 아니라 검사가 봐야 한다.
 
 ## 배포 (Cloudflare)
 
@@ -254,6 +286,19 @@ node web/scripts/check-office-tools.mjs
 보안 헤더는 `web/public/_headers` 가 갖는다. 그 안의
 `Content-Security-Policy: … connect-src 'self'` 가 **파일이 나가지 않는다는 약속을
 브라우저에게 지키게 하는 자리다** — 코드의 선의가 아니라 규칙이 된다.
+
+### 배포 주소는 `VITE_SITE_URL` 로 받는다
+
+`canonical`·`og:url`·`sitemap.xml` 은 절대 주소여야 뜻이 산다. 그런데 저장소는 제가
+어디에 올라갈지 모르므로 그 주소를 빌드 때 환경 변수로 받는다 —
+`VITE_SITE_URL=https://convertors.example.com npm --prefix web run build`, Workers
+Builds 에 맡길 때는 대시보드의 빌드 환경 변수에 같은 값을 넣는다. **값이 없으면 그
+셋을 아예 내지 않는다**: canonical 도 og:url 도 붙지 않고, `sitemap.xml` 이 나오지
+않으며, `robots.txt` 의 `Sitemap:` 줄도 붙지 않는다. 그럴듯한 주소를 지어내면 검색
+엔진이 남의 주소를 정본으로 알고 공유 미리보기가 엉뚱한 곳을 긁는다 — 틀린 주소를
+내는 것이 빈 것보다 나쁘고, 조용히 실패하지 않는 것이 이 도구의 규칙이다. 값이 있는데
+주소로 읽히지 않으면 빌드를 세운다. 이 판단은 전부 `web/vite.config.ts` 의
+`converter-site-url` 플러그인 한 군데에 있다.
 
 ### 손으로 올릴 때
 
@@ -311,3 +356,28 @@ HWPX 로 저장한 뒤 반드시 종료한다 — 종료를 빼먹으면 한글 
 
 `verify-hwpx.ps1` 은 만든 HWPX 를 한글에서 열어 보는 검증용이다. HWPX 를 지원하지
 않는 한글(8 이하)에서는 재시도하지 않고 검증 환경이 부족하다고 알린다.
+
+## 라이선스
+
+**상용 비공개다.** 저작권은 tkddls8848 에게 있고 모든 권리를 보유한다 —
+소스를 볼 수 있다는 것이 마음대로 써도 된다는 뜻이 아니다. 조건은 [`LICENSE`](LICENSE)
+에 있고, 거기 적히지 않은 사용은 허락된 것이 아니다. 쓰고 싶은 자리가 있으면
+tkddls8848@gmail.com 으로 물어라.
+
+**함께 배포되는 제3자 구성요소에는 이 라이선스가 적용되지 않는다.** 각자의 라이선스가
+그대로 적용되고, 목록과 원문 위치는 [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)
+에 있다(원문은 `web/public/licenses/`, 화면 아래 고지도 같은 것을 가리킨다). 그 목록은
+손으로 적지 않고 `web/scripts/gen_licenses.mjs` 가 `node_modules` 에서 뽑는다 — 손으로
+적은 고지는 의존성을 올릴 때 조용히 어긋나고, 어긋난 고지는 없느니만 못하다.
+
+**카피레프트는 배포물에 싣지 않는다.** PDF.js 가 함께 싣는 Liberation 글꼴이
+GPLv2 + 글꼴 예외라, 상용 비공개로 내놓는 이상 빼는 편이 깔끔하다고 보고 뺐다
+(영향을 먼저 쟀다 — [CHANGELOG](CHANGELOG.md) 에 수치가 있다). 무엇이 실려 나가는지는
+`web/pdf-assets.json` 하나가 정하고 **빌드와 고지 생성이 둘 다 그 파일을 읽는다.**
+고지 생성기는 카피레프트가 걸린 것을 만나면 그 사실을 세어 알린다 — 지금은 0건이다.
+
+## 취약점을 찾았다면
+
+[`SECURITY.md`](SECURITY.md) 를 보라. 공개 이슈 말고 tkddls8848@gmail.com 으로
+보내 달라. 서버가 없는 도구라 위협 모형이 보통의 웹 서비스와 달라서, 무엇을
+취약점으로 보고 무엇을 보지 않는지도 거기 적어 두었다.

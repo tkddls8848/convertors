@@ -113,6 +113,8 @@ export function mountConverters(root: HTMLElement): void {
   const stage = document.createElement('div');
   stage.className = 'conv-stage';
   stage.id = 'conv-stage';
+  stage.setAttribute('role', 'region');
+  stage.setAttribute('aria-label', '고른 도구');
   stage.append(placeholder());
 
   // 만든 도구는 버리지 않고 들고 있는다. 떼었다 붙여도 안에 든 것이 남는다.
@@ -124,12 +126,19 @@ export function mountConverters(root: HTMLElement): void {
   const chooser = document.createElement('nav');
   chooser.className = 'conv-choices';
   chooser.setAttribute('aria-label', '변환 고르기');
+  // 갈래는 고르기의 하위 제목이다. 도구는 별도 영역이라 h2를 유지한다.
+  const chooserTitle = document.createElement('h2');
+  chooserTitle.className = 'conv-choices__title';
+  chooserTitle.textContent = '변환 고르기';
+  chooser.append(chooserTitle);
 
   const select = async (choice: Choice): Promise<void> => {
     wanted = choice.id;
     for (const [id, button] of buttons) button.setAttribute('aria-pressed', String(id === choice.id));
     let tool = built.get(choice.id);
     if (!tool) {
+      stage.removeAttribute('aria-labelledby');
+      stage.setAttribute('aria-label', '고른 도구');
       stage.replaceChildren(notice(`${choice.title} 여는 중…`));
       try {
         tool = await choice.build();
@@ -139,13 +148,25 @@ export function mountConverters(root: HTMLElement): void {
       }
       built.set(choice.id, tool);
     }
-    if (wanted === choice.id) stage.replaceChildren(tool);
+    if (wanted === choice.id) {
+      stage.replaceChildren(tool);
+      const title = tool.querySelector<HTMLElement>('h2');
+      if (title) {
+        title.id = `conv-title-${choice.id}`;
+        title.tabIndex = -1;
+        stage.removeAttribute('aria-label');
+        stage.setAttribute('aria-labelledby', title.id);
+        // 전체 도구를 낭독하는 live 영역 대신 제목 초점으로 열린 도구를 알린다.
+        // 고르던 자리까지 함께 움직이면 키보드 사용자가 위치를 잃는다.
+        title.focus({ preventScroll: true });
+      }
+    }
   };
 
   for (const group of GROUPS) {
     const section = document.createElement('div');
     section.className = 'conv-group';
-    const heading = document.createElement('h2');
+    const heading = document.createElement('h3');
     heading.className = 'conv-group__title';
     heading.textContent = group.title;
     const grid = document.createElement('div');
@@ -175,7 +196,57 @@ export function mountConverters(root: HTMLElement): void {
     chooser.append(section);
   }
 
-  root.append(header(), chooser, stage);
+  root.append(header(), chooser, stage, footer());
+}
+
+/** 고지 자료가 없는 배포에서 빈 링크를 약속하지 않는다. */
+function footer(): HTMLElement {
+  const foot = document.createElement('footer');
+  foot.className = 'conv-footer';
+  const promise = document.createElement('p');
+  promise.textContent = '고른 파일은 이 컴퓨터를 벗어나지 않습니다';
+  foot.append(promise);
+  void (async () => {
+    try {
+      const index = new URL('licenses/index.json', new URL(import.meta.env.BASE_URL, location.href));
+      const response = await fetch(index, { redirect: 'error' });
+      if (!response.ok) return;
+      const data: unknown = await response.json();
+      // 생성기의 요약 정보가 붙은 목록과 단순 배열을 함께 읽는다.
+      const entries: unknown = Array.isArray(data) ? data
+        : data && typeof data === 'object' && 'components' in data ? data.components : null;
+      if (!Array.isArray(entries) || !entries.length) return;
+      const rows: Array<{ name: string; version: string; license: string; url: URL }> = [];
+      for (const item of entries) {
+        if (!item || typeof item !== 'object') return;
+        const { name, version, license, file } = item as Record<string, unknown>;
+        if (![name, license, file].every(value => typeof value === 'string' && value.trim()) || typeof version !== 'string') return;
+        const url = new URL(file as string, index);
+        if (url.origin !== location.origin || !['http:', 'https:'].includes(url.protocol) || url.username || url.password) return;
+        rows.push({ name: name as string, version: version.trim() || '판본 미상', license: license as string, url });
+      }
+      const details = document.createElement('details');
+      details.className = 'conv-licenses';
+      const summary = document.createElement('summary');
+      summary.textContent = '오픈소스 고지';
+      const list = document.createElement('ul');
+      for (const row of rows) {
+        const li = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = row.url.href;
+        link.textContent = `${row.name} · ${row.version} · ${row.license}`;
+        li.append(link);
+        list.append(li);
+      }
+      details.append(summary, list);
+      foot.append(details);
+    } catch {
+      // 목록을 읽지 못해도 파일 변환은 계속 쓸 수 있다. 없는 고지만 감춘다.
+    } finally {
+      foot.dataset['licensesLoaded'] = 'true';
+    }
+  })();
+  return foot;
 }
 
 function notice(text: string, error = false): HTMLElement {

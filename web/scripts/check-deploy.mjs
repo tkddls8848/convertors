@@ -12,6 +12,12 @@
  *   npm --prefix web run preview:cf -- --port 8791
  *   node web/scripts/check-deploy.mjs
  *
+ * 배포 주소를 넣고 빌드했다면 검사에도 같은 값을 넘겨라. 그래야 canonical·og:url·
+ * sitemap.xml 이 실제로 실렸는지까지 본다. 빈 채로 돌리면 반대로 **그 셋이 없는지**
+ * 를 본다 — 주소를 모르는 채 무언가 나왔다면 그것이 틀린 주소라는 뜻이다.
+ *
+ *   VITE_SITE_URL=https://convertors.example.com node web/scripts/check-deploy.mjs
+ *
  * 바이트를 확인할 때 `fetch(a.href)` 를 쓰지 않는다. 내려받기 링크는 blob: 인데
  * 우리 CSP 는 `connect-src 'self'` 라 그것을 막는다 — 막는 것이 맞다. 대신
  * 브라우저가 실제로 내려받은 파일을 디스크에서 읽는다. 쓰는 사람이 겪는 길과
@@ -45,7 +51,13 @@ for (const [header, expected] of [
   ['x-frame-options', 'DENY'],
   ['referrer-policy', 'no-referrer'],
 ]) assert.equal(root.headers.get(header), expected, `${header} 가 다르다`);
-assert.match(root.headers.get('x-robots-tag') ?? '', /noindex/, 'x-robots-tag 가 없다');
+// 공개 제품이 된 뒤로는 반대를 단언한다. noindex 헤더가 한 줄이라도 남아 있으면
+// robots.txt 를 아무리 열어도 색인되지 않는데, 화면은 멀쩡해서 아무도 모른다.
+assert.doesNotMatch(
+  root.headers.get('x-robots-tag') ?? '',
+  /noindex/,
+  `x-robots-tag 가 색인을 막고 있다: ${root.headers.get('x-robots-tag')}`,
+);
 
 // --- 2. 런타임이 이름으로 찾아 읽는 자산이 실렸는가 ---------------------------
 // 번들러가 손대지 않는 것들이라 빌드에서 조용히 빠지기 쉽다. 빠지면 PDF 가
@@ -56,19 +68,84 @@ const stdFont = await fetch(`${base}/pdf-assets/standard_fonts/FoxitSerif.pfb`);
 assert.equal(stdFont.status, 200, 'PDF.js 기본 글꼴이 dist 에 없다');
 const wasm = await fetch(`${base}/pdf-assets/wasm/jbig2.wasm`);
 assert.equal(wasm.status, 200, 'PDF.js wasm 이 dist 에 없다 (스캔 PDF 가 깨진다)');
-const robots = await fetch(`${base}/robots.txt`);
-assert.equal(robots.status, 200, 'robots.txt 가 없다');
-
 // 글꼴은 못 받아도 배포는 선다 (화면이 라틴 글꼴로 물러난다). 있으면 성한지 본다.
 const catalog = await fetch(`${base}/fonts/fonts.json`);
 const fonts = catalog.status === 200 ? await catalog.json() : [];
 if (fonts.length) assert.ok(Array.isArray(fonts) && fonts[0].file, '글꼴 목록 모양이 다르다');
 
-// --- 3. 없는 주소는 404 로 답한다 (멀쩡한 화면을 내주지 않는다) ---------------
+// --- 3. 공개 제품의 자세 — 검색과 공유가 실제로 걸리는가 ----------------------
+// 여기서 틀려도 화면은 멀쩡하다. 검색에 안 뜨고 공유 미리보기가 비는 것은 쓰는
+// 사람이 아니라 안 쓰는 사람에게만 보이므로, 검사가 대신 봐 주지 않으면 아무도 모른다.
+const robots = await fetch(`${base}/robots.txt`);
+assert.equal(robots.status, 200, 'robots.txt 가 없다');
+const robotsText = await robots.text();
+assert.match(robotsText, /^User-agent: \*\nAllow: \//m, 'robots.txt 의 * 그룹이 열려 있지 않다');
+assert.match(robotsText, /^User-agent: GPTBot\nDisallow: \//m, 'AI 학습용 수집기 차단 목록이 사라졌다');
+
+/**
+ * PNG 인지 바이트로 본다. 확장자와 Content-Type 은 얼마든지 거짓말을 할 수 있고,
+ * 깨진 이미지는 공유하기 전까지 아무 소리도 내지 않는다.
+ *
+ * 머리 8바이트가 PNG 서명이고, 그 뒤 IHDR 청크에 가로·세로가 큰끝 4바이트씩 들어 있다.
+ */
+const png = async (path, width, height) => {
+  const response = await fetch(`${base}${path}`);
+  assert.equal(response.status, 200, `${path} 가 없다`);
+  assert.equal(response.headers.get('content-type'), 'image/png', `${path} 의 Content-Type 이 PNG 가 아니다`);
+  const bytes = new DataView(await response.arrayBuffer());
+  assert.equal(bytes.getUint32(0), 0x89504e47, `${path} 가 PNG 가 아니다 (서명이 다르다)`);
+  assert.equal(bytes.getUint32(16), width, `${path} 의 가로가 ${width} 가 아니다`);
+  assert.equal(bytes.getUint32(20), height, `${path} 의 세로가 ${height} 가 아니다`);
+};
+
+const favicon = await fetch(`${base}/favicon.svg`);
+assert.equal(favicon.status, 200, 'favicon.svg 가 없다 (탭에 아무것도 안 나온다)');
+assert.match(favicon.headers.get('content-type') ?? '', /image\/svg\+xml/, 'favicon.svg 의 Content-Type 이 다르다');
+assert.match(await favicon.text(), /<svg[\s\S]*<\/svg>/, 'favicon.svg 안이 SVG 가 아니다');
+await png('/favicon-32.png', 32, 32);
+await png('/apple-touch-icon.png', 180, 180);
+await png('/og.png', 1200, 630);
+
+// 미리보기와 검색 결과에 들어가는 문구. 하나라도 빠지면 그 자리가 빈 채로 나간다.
+const html = await root.text();
+for (const [label, pattern] of [
+  ['description', /<meta\s+name="description"\s+content="[^"]{20,}"/],
+  ['og:title', /<meta\s+property="og:title"\s+content="[^"]+"/],
+  ['og:description', /<meta\s+property="og:description"\s+content="[^"]+"/],
+  ['og:type', /<meta\s+property="og:type"\s+content="website"/],
+  ['og:locale', /<meta\s+property="og:locale"\s+content="ko_KR"/],
+  ['og:image', /<meta\s+property="og:image"\s+content="[^"]*\/og\.png"/],
+  ['og:image:width', /<meta\s+property="og:image:width"\s+content="1200"/],
+  ['og:image:height', /<meta\s+property="og:image:height"\s+content="630"/],
+  ['twitter:card', /<meta\s+name="twitter:card"\s+content="summary_large_image"/],
+  ['theme-color', /<meta\s+name="theme-color"\s+content="#12141a"/],
+  ['favicon', /<link\s+rel="icon"\s+href="\/favicon\.svg"/],
+]) assert.match(html, pattern, `index.html 에 ${label} 이 없다`);
+// 사내용 도구 시절의 흔적. 남아 있으면 robots.txt 를 열어도 소용이 없다.
+assert.doesNotMatch(html, /name="robots"/, 'index.html 에 아직 robots 메타가 있다');
+
+// 주소를 아는 경우에만 절대 주소가 나온다. 모르면 지어내지 않는다 — 두 쪽 다 본다.
+const site = (process.env.VITE_SITE_URL ?? '').trim().replace(/\/+$/, '');
+const sitemap = await fetch(`${base}/sitemap.xml`);
+if (site) {
+  assert.equal(sitemap.status, 200, 'VITE_SITE_URL 을 줬는데 sitemap.xml 이 없다');
+  assert.ok((await sitemap.text()).includes(`<loc>${site}/</loc>`), 'sitemap.xml 이 다른 주소를 가리킨다');
+  assert.ok(robotsText.includes(`Sitemap: ${site}/sitemap.xml`), 'robots.txt 에 Sitemap 줄이 없다');
+  assert.ok(html.includes(`<link rel="canonical" href="${site}/">`), 'canonical 이 없다');
+  assert.ok(html.includes(`<meta property="og:url" content="${site}/">`), 'og:url 이 없다');
+  assert.ok(html.includes(`content="${site}/og.png"`), 'og:image 가 절대 주소가 아니다');
+} else {
+  assert.equal(sitemap.status, 404, 'VITE_SITE_URL 없이 sitemap.xml 이 나왔다 — 주소를 지어냈다는 뜻이다');
+  assert.doesNotMatch(robotsText, /^Sitemap:/m, 'VITE_SITE_URL 없이 robots.txt 에 Sitemap 줄이 있다');
+  assert.doesNotMatch(html, /rel="canonical"/, 'VITE_SITE_URL 없이 canonical 이 나왔다');
+  assert.doesNotMatch(html, /property="og:url"/, 'VITE_SITE_URL 없이 og:url 이 나왔다');
+}
+
+// --- 4. 없는 주소는 404 로 답한다 (멀쩡한 화면을 내주지 않는다) ---------------
 const missing = await fetch(`${base}/없는-주소`);
 assert.equal(missing.status, 404, `없는 주소가 ${missing.status} 로 답했다 — not_found_handling 을 보라`);
 
-// --- 4. CSP 를 켠 채로 실제 화면이 서고, 변환이 끝까지 도는가 -----------------
+// --- 5. CSP 를 켠 채로 실제 화면이 서고, 변환이 끝까지 도는가 -----------------
 const browser = await chromium.launch({ headless: true });
 try {
   const page = await browser.newPage();
@@ -124,7 +201,8 @@ try {
 }
 
 console.log(
-  `PASS: 보안 헤더(CSP connect-src 'self'), /pdf-assets·robots.txt 실림, ` +
-  `글꼴 목록 ${fonts.length}종, 없는 주소 404, CSP 켠 채 문서→HWPX 왕복, ` +
-  `바깥 요청 없음.`,
+  `PASS: 보안 헤더(CSP connect-src 'self', noindex 없음), /pdf-assets·robots.txt 실림, ` +
+  `글꼴 목록 ${fonts.length}종, 파비콘·OG 이미지 성함, 메타 태그 갖춤, ` +
+  `${site ? `배포 주소 ${site} — canonical·og:url·sitemap 실림` : '배포 주소 없음 — canonical·og:url·sitemap 안 냄'}, ` +
+  `없는 주소 404, CSP 켠 채 문서→HWPX 왕복, 바깥 요청 없음.`,
 );

@@ -1,0 +1,104 @@
+# 변환 결과가 조용히 빠지는 회귀는 단위 검사만으로 잡히지 않는다.
+# 세 브라우저의 실제 변환과 배포 모양의 CSP·헤더·자산·404를 함께 확인해,
+# 고른 파일이 이 컴퓨터를 벗어나지 않는다는 약속을 지킨다.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web
+      - run: npm --prefix web run typecheck
+      - run: npm --prefix web test
+      - run: npm --prefix web run build
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-failure
+          path: .cache/
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web
+      - run: npx --prefix web playwright install --with-deps ${{ matrix.browser }}
+      # 글꼴을 받지 못해도 기본 라틴 글꼴로 물러나는 흐름을 검사한다.
+      - run: python3 web/scripts/fetch_fonts.py || true
+      - name: 개발 서버에서 변환 검사
+        env:
+          CHECK_BROWSER: ${{ matrix.browser }}
+        run: |
+          mkdir -p .cache
+          npm --prefix web run dev -- --host 127.0.0.1 --port 18574 --strictPort > .cache/vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          curl --fail --silent --show-error --retry 60 --retry-all-errors --retry-delay 1 --retry-max-time 120 --max-time 2 http://127.0.0.1:18574/ > /dev/null
+          node web/scripts/check-converters.mjs
+          node web/scripts/check-formats.mjs
+          node web/scripts/check-office-tools.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-${{ matrix.browser }}-failure
+          path: .cache/
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+  deploy-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web
+      - run: npx --prefix web playwright install --with-deps chromium
+      - run: python3 web/scripts/fetch_fonts.py || true
+      - run: npm --prefix web run build
+      - name: 배포 모양에서 헤더와 자산 검사
+        run: |
+          mkdir -p .cache
+          npx --prefix web wrangler dev --env="" --port 8791 --ip 127.0.0.1 --config web/wrangler.jsonc > .cache/wrangler.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          curl --fail --silent --show-error --retry 60 --retry-all-errors --retry-delay 1 --retry-max-time 120 --max-time 2 http://127.0.0.1:8791/ > /dev/null
+          node web/scripts/check-deploy.mjs
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: deploy-check-failure
+          path: .cache/
+          include-hidden-files: true
+          if-no-files-found: ignore

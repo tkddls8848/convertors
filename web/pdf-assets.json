@@ -1,0 +1,28 @@
+{
+  "주석": [
+    "PDF.js 가 런타임에 이름으로 찾아 읽는 자료. 코드가 아니라 자료라 번들러가",
+    "손대지 않고 /pdf-assets/<폴더>/ 로 그대로 실려 나간다.",
+    "이 파일이 '무엇이 실려 나가는가'의 유일한 정본이다 — 빌드(vite.config.ts)와",
+    "고지 생성(scripts/gen_licenses.mjs)이 둘 다 여기를 읽는다. 두 곳에 따로",
+    "적으면 배포물과 고지가 조용히 어긋나고, 그것이 법적 고지에서 제일 나쁜 실패다."
+  ],
+  "dirs": [
+    "cmaps",
+    "standard_fonts",
+    "wasm",
+    "iccs"
+  ],
+  "excludePattern": "^(Liberation.*\\.ttf|LICENSE_LIBERATION)$",
+  "excludeReason": [
+    "Liberation 글꼴은 GPLv2 + 글꼴 예외다. 이 저장소는 상용 비공개(All rights",
+    "reserved)라 카피레프트가 걸린 파일을 배포물에 싣지 않기로 했다.",
+    "",
+    "빼면 무엇이 달라지는가 — 실측했다. 보는 사람의 컴퓨터에 해당 글꼴이 있으면",
+    "PDF.js 는 이 자료를 아예 요청하지 않는다(요청 0건, 산출물 바이트 동일).",
+    "없는 컴퓨터에서 비임베디드 sans 글꼴을 만났을 때만 LiberationSans 를 받아",
+    "쓰는데, 그때는 404 뒤 브라우저 기본 sans 로 그려진다. 픽셀 0.92% 차이였고",
+    "글자는 그대로 읽혔다.",
+    "",
+    "Times 와 Courier 는 같은 폴더의 Foxit(.pfb, PDFium BSD)가 계속 맡는다."
+  ]
+}

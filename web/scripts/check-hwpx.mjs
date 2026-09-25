@@ -4,13 +4,15 @@ import { fileURLToPath } from 'node:url';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const require = createRequire(new URL('../package.json', import.meta.url));
-const { chromium } = require('playwright');
+const browserName = process.env.CHECK_BROWSER ?? 'chromium';
+assert.ok(['chromium', 'firefox', 'webkit'].includes(browserName), `지원하지 않는 검사 브라우저입니다: ${browserName}`);
+const browserType = require('playwright')[browserName];
 const { PDFDocument, degrees, rgb } = require('pdf-lib');
 const { unzipSync, strFromU8 } = require('fflate');
 const base = process.env.HWPX_TEST_URL ?? 'http://127.0.0.1:18574';
 const out = new URL('../../.cache/hwpx-validation/', import.meta.url);
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await browserType.launch({ headless: true });
 try {
   const page = await browser.newPage();
   const errors = [];
