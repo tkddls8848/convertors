@@ -205,7 +205,15 @@ function footer(): HTMLElement {
   foot.className = 'conv-footer';
   const promise = document.createElement('p');
   promise.textContent = '고른 파일은 이 컴퓨터를 벗어나지 않습니다';
-  foot.append(promise);
+
+  // 상용 비공개 도구다. 소스를 볼 수 있다는 것이 마음대로 써도 된다는 뜻이 아니라는
+  // 것을 쓰는 사람이 화면에서 한 번은 보게 한다 — 조건은 저장소의 LICENSE 에 있다.
+  // 함께 배포되는 제3자 구성요소는 각자의 라이선스를 따르고, 그 목록이 아래 고지다.
+  const rights = document.createElement('p');
+  rights.className = 'conv-footer__rights';
+  rights.textContent = '© 2026 미르누리. 모든 권리를 보유합니다.';
+
+  foot.append(promise, rights);
   void (async () => {
     try {
       const index = new URL('licenses/index.json', new URL(import.meta.env.BASE_URL, location.href));
