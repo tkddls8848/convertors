@@ -38,6 +38,16 @@ const { unzipSync, strFromU8 } = require('fflate');
 // 그 오류는 설정이 틀린 것처럼 보여서 한참 헤매게 된다. 리눅스 CI 는 무관하지만
 // 기본값은 **양쪽에서 다 되는 값**이어야 한다.
 const base = process.env.DEPLOY_TEST_URL ?? 'http://127.0.0.1:18700';
+
+/**
+ * 색인을 막은 배포(스테이징)를 보는가.
+ *
+ * 스테이징은 프로덕션과 **같은 dist** 를 올린다. 같은 내용이 두 주소에 뜨면 검색
+ * 엔진이 그중 하나를 고르는데 하필 스테이징이 뽑히면 쓰는 사람이 낡은 판을 본다.
+ * 그래서 스테이징은 `VITE_NOINDEX=1` 로 굽고, 이 검사는 **두 모드에서 서로 반대를
+ * 단언한다** — 안 그러면 실수로 프로덕션에 noindex 를 올려도 검사가 통과한다.
+ */
+const noIndex = /^(1|true|yes)$/i.test((process.env.VITE_NOINDEX ?? '').trim());
 const out = new URL('../../.cache/deploy-check/', import.meta.url);
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
@@ -58,11 +68,20 @@ for (const [header, expected] of [
 ]) assert.equal(root.headers.get(header), expected, `${header} 가 다르다`);
 // 공개 제품이 된 뒤로는 반대를 단언한다. noindex 헤더가 한 줄이라도 남아 있으면
 // robots.txt 를 아무리 열어도 색인되지 않는데, 화면은 멀쩡해서 아무도 모른다.
-assert.doesNotMatch(
-  root.headers.get('x-robots-tag') ?? '',
-  /noindex/,
-  `x-robots-tag 가 색인을 막고 있다: ${root.headers.get('x-robots-tag')}`,
-);
+// 스테이징은 반대로 **있어야** 한다.
+if (noIndex) {
+  assert.match(
+    root.headers.get('x-robots-tag') ?? '',
+    /noindex/,
+    '색인을 막는 배포인데 x-robots-tag 에 noindex 가 없다',
+  );
+} else {
+  assert.doesNotMatch(
+    root.headers.get('x-robots-tag') ?? '',
+    /noindex/,
+    `x-robots-tag 가 색인을 막고 있다: ${root.headers.get('x-robots-tag')}`,
+  );
+}
 
 // --- 2. 런타임이 이름으로 찾아 읽는 자산이 실렸는가 ---------------------------
 // 번들러가 손대지 않는 것들이라 빌드에서 조용히 빠지기 쉽다. 빠지면 PDF 가
@@ -84,8 +103,12 @@ if (fonts.length) assert.ok(Array.isArray(fonts) && fonts[0].file, '글꼴 목�
 const robots = await fetch(`${base}/robots.txt`);
 assert.equal(robots.status, 200, 'robots.txt 가 없다');
 const robotsText = await robots.text();
-assert.match(robotsText, /^User-agent: \*\nAllow: \//m, 'robots.txt 의 * 그룹이 열려 있지 않다');
-assert.match(robotsText, /^User-agent: GPTBot\nDisallow: \//m, 'AI 학습용 수집기 차단 목록이 사라졌다');
+if (noIndex) {
+  assert.match(robotsText, /^User-agent: \*\nDisallow: \//m, '색인을 막는 배포인데 robots.txt 가 열려 있다');
+} else {
+  assert.match(robotsText, /^User-agent: \*\nAllow: \//m, 'robots.txt 의 * 그룹이 열려 있지 않다');
+  assert.match(robotsText, /^User-agent: GPTBot\nDisallow: \//m, 'AI 학습용 수집기 차단 목록이 사라졌다');
+}
 
 /**
  * PNG 인지 바이트로 본다. 확장자와 Content-Type 은 얼마든지 거짓말을 할 수 있고,
@@ -127,12 +150,21 @@ for (const [label, pattern] of [
   ['favicon', /<link\s+rel="icon"\s+href="\/favicon\.svg"/],
 ]) assert.match(html, pattern, `index.html 에 ${label} 이 없다`);
 // 사내용 도구 시절의 흔적. 남아 있으면 robots.txt 를 열어도 소용이 없다.
-assert.doesNotMatch(html, /name="robots"/, 'index.html 에 아직 robots 메타가 있다');
+// 스테이징에서는 반대로 있어야 한다 — 헤더를 못 보는 수집기까지 잡는 자리다.
+if (noIndex) assert.match(html, /name="robots"[^>]*noindex/, '색인을 막는 배포인데 meta robots 가 없다');
+else assert.doesNotMatch(html, /name="robots"/, 'index.html 에 아직 robots 메타가 있다');
 
 // 주소를 아는 경우에만 절대 주소가 나온다. 모르면 지어내지 않는다 — 두 쪽 다 본다.
 const site = (process.env.VITE_SITE_URL ?? '').trim().replace(/\/+$/, '');
 const sitemap = await fetch(`${base}/sitemap.xml`);
-if (site) {
+if (site && noIndex) {
+  // 색인하지 말라면서 sitemap 을 내미는 것은 앞뒤가 맞지 않는다. 대신 canonical 은
+  // 남겨 둔다 — 혹시 긁히더라도 "여기는 저쪽의 사본"이라고 말해 주는 자리다.
+  assert.equal(sitemap.status, 404, '색인을 막는 배포인데 sitemap.xml 이 나왔다');
+  assert.doesNotMatch(robotsText, /^Sitemap:/m, '색인을 막는 배포인데 robots.txt 에 Sitemap 줄이 있다');
+  assert.ok(html.includes(`<link rel="canonical" href="${site}/">`), 'canonical 이 없다');
+  assert.ok(html.includes(`<meta property="og:url" content="${site}/">`), 'og:url 이 없다');
+} else if (site) {
   assert.equal(sitemap.status, 200, 'VITE_SITE_URL 을 줬는데 sitemap.xml 이 없다');
   assert.ok((await sitemap.text()).includes(`<loc>${site}/</loc>`), 'sitemap.xml 이 다른 주소를 가리킨다');
   assert.ok(robotsText.includes(`Sitemap: ${site}/sitemap.xml`), 'robots.txt 에 Sitemap 줄이 없다');
@@ -205,9 +237,17 @@ try {
   await browser.close();
 }
 
+const 색인 = noIndex
+  ? 'noindex 켬(robots Disallow·X-Robots-Tag·meta)'
+  : 'noindex 없음';
+const 주소 = !site
+  ? '배포 주소 없음 — canonical·og:url·sitemap 안 냄'
+  : noIndex
+    ? `배포 주소 ${site} — canonical·og:url 만, sitemap 안 냄`
+    : `배포 주소 ${site} — canonical·og:url·sitemap 실림`;
+
 console.log(
-  `PASS: 보안 헤더(CSP connect-src 'self', noindex 없음), /pdf-assets·robots.txt 실림, ` +
+  `PASS: 보안 헤더(CSP connect-src 'self', ${색인}), /pdf-assets·robots.txt 실림, ` +
   `글꼴 목록 ${fonts.length}종, 파비콘·OG 이미지 성함, 메타 태그 갖춤, ` +
-  `${site ? `배포 주소 ${site} — canonical·og:url·sitemap 실림` : '배포 주소 없음 — canonical·og:url·sitemap 안 냄'}, ` +
-  `없는 주소 404, CSP 켠 채 문서→HWPX 왕복, 바깥 요청 없음.`,
+  `${주소}, 없는 주소 404, CSP 켠 채 문서→HWPX 왕복, 바깥 요청 없음.`,
 );

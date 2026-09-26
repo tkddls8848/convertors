@@ -62,6 +62,7 @@ function siteUrl(): Plugin {
   let site = '';
   let outDir = '';
   let built = false;
+  let noIndex = false;
 
   return {
     name: 'converter-site-url',
@@ -71,6 +72,13 @@ function siteUrl(): Plugin {
       // 둘 중 어느 쪽으로 넣어도 같게 읽힌다.
       const raw = String(config.env.VITE_SITE_URL ?? '').trim();
       outDir = resolve(config.root, config.build.outDir);
+
+      // 스테이징처럼 **남이 찾아오면 안 되는 배포**에 켠다. 같은 dist 를 두 곳에
+      // 올리면 같은 내용이 두 주소에 뜨고, 검색 엔진은 그중 하나를 고른다 —
+      // 하필 스테이징이 뽑히면 쓰는 사람이 낡은 판을 본다. canonical 만으로는
+      // 권고일 뿐이라, 색인하지 말라고 직접 말하는 편이 확실하다.
+      noIndex = /^(1|true|yes)$/i.test(String(config.env.VITE_NOINDEX ?? '').trim());
+
       if (!raw) return;
 
       let parsed;
@@ -83,11 +91,18 @@ function siteUrl(): Plugin {
     },
 
     transformIndexHtml(html) {
-      if (!site) return html;
+      // 색인을 막는 배포에서는 주소를 알든 모르든 이 태그가 먼저다.
+      const robotsTag = noIndex
+        ? [{ tag: 'meta', attrs: { name: 'robots', content: 'noindex, nofollow' }, injectTo: 'head' as const }]
+        : [];
+      if (!site) return robotsTag.length ? { html, tags: robotsTag } : html;
       return {
         // og:image 는 index.html 에 상대 경로로 있다. 주소를 아는 지금만 절대로 바꾼다.
         html: html.replace('content="/og.png"', `content="${site}/og.png"`),
         tags: [
+          ...robotsTag,
+          // 색인을 막는 배포에서도 canonical 은 **프로덕션을 가리킨 채로 둔다.**
+          // 그래야 혹시 긁힌 스테이징이 프로덕션의 사본임을 말해 준다.
           { tag: 'link', attrs: { rel: 'canonical', href: `${site}/` }, injectTo: 'head' as const },
           { tag: 'meta', attrs: { property: 'og:url', content: `${site}/` }, injectTo: 'head' as const },
         ],
@@ -103,6 +118,34 @@ function siteUrl(): Plugin {
     // closeBundle 은 빌드의 맨 끝이라 그 순서를 따질 필요가 없다.
     closeBundle() {
       if (!built) return;
+
+      if (noIndex) {
+        // 셋을 함께 켠다. robots.txt 는 "받아 가지 말라", X-Robots-Tag 는 "이미
+        // 받아 갔더라도 색인하지 말라", meta 는 그 헤더를 못 보는 쪽까지 잡는다.
+        // 하나만으로는 새는 길이 남는다.
+        writeFileSync(resolve(outDir, 'robots.txt'), [
+          '# 이 배포는 색인되면 안 된다 (VITE_NOINDEX=1 로 구웠다).',
+          '# 프로덕션과 내용이 같아서, 여기가 색인되면 쓰는 사람이 낡은 판을 볼 수 있다.',
+          '',
+          'User-agent: *',
+          'Disallow: /',
+          '',
+        ].join('\n'));
+
+        const headers = resolve(outDir, '_headers');
+        if (existsSync(headers)) {
+          // `/*` 블록 **안**에 넣어야 한다. 파일 끝에 붙이면 규칙 밖이라 무시된다.
+          const text = readFileSync(headers, 'utf8');
+          const marked = text.replace(/^\/\*$/m, '/*\n  X-Robots-Tag: noindex, nofollow, noarchive');
+          if (marked === text) this.warn('_headers 에서 `/*` 블록을 찾지 못해 X-Robots-Tag 를 넣지 못했다.');
+          else writeFileSync(headers, marked);
+        }
+
+        // 색인하지 말라면서 sitemap 을 내미는 것은 앞뒤가 맞지 않는다.
+        this.info('VITE_NOINDEX=1 — robots.txt Disallow·X-Robots-Tag·meta robots 를 켜고 sitemap 은 내지 않았다.');
+        return;
+      }
+
       if (!site) {
         this.warn('VITE_SITE_URL 이 없어 canonical·og:url·sitemap.xml 을 내지 않았다. 배포 주소가 정해지면 넣어라.');
         return;

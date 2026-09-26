@@ -304,9 +304,32 @@ Builds 에 맡길 때는 대시보드의 빌드 환경 변수에 같은 값을 �
 
 ```bash
 npx wrangler login                     # 처음 한 번
-bash web/scripts/cf_build.sh           # npm ci → 글꼴 → dist
+bash web/scripts/cf_build.sh           # npm ci → 글꼴 → 고지 → dist
 npm --prefix web run check             # 올리지 않고 설정·자산만 맞춰 본다
-npm --prefix web run deploy            # 또는 deploy:staging
+npm --prefix web run deploy            # 프로덕션
+```
+
+**스테이징은 색인을 막고 굽는다.** 프로덕션과 **같은 dist** 를 올리기 때문에, 그냥
+올리면 같은 내용이 두 주소에 뜨고 검색 엔진이 그중 하나를 고른다 — 하필 스테이징이
+뽑히면 쓰는 사람이 낡은 판을 본다.
+
+```bash
+VITE_NOINDEX=1 bash web/scripts/cf_build.sh
+bash web/scripts/cf_deploy.sh deploy --env staging
+```
+
+`VITE_NOINDEX=1` 은 셋을 함께 켠다 — `robots.txt` 를 `Disallow: /` 로 바꾸고,
+`X-Robots-Tag: noindex` 를 붙이고, `<meta name="robots">` 를 심는다. 하나만으로는
+새는 길이 남기 때문이다(robots.txt 를 안 읽고 링크를 타고 온 수집기에는 헤더가
+유일한 신호이고, 헤더를 못 보는 쪽에는 meta 가 남는다). `sitemap.xml` 은 내지
+않는다 — 색인하지 말라면서 지도를 내미는 것은 앞뒤가 맞지 않는다. **canonical 은
+프로덕션을 가리킨 채로 둔다** — 혹시 긁히더라도 여기가 사본임을 말해 준다.
+
+검사도 같은 변수를 읽어 **두 모드에서 서로 반대를 단언한다.** 안 그러면 실수로
+프로덕션에 noindex 를 올려도 검사가 통과한다.
+
+```bash
+VITE_NOINDEX=1 DEPLOY_TEST_URL=https://<스테이징 주소> node web/scripts/check-deploy.mjs
 ```
 
 ### Cloudflare Workers Builds 에 맡길 때
