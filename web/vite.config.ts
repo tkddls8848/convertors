@@ -174,7 +174,7 @@ function siteUrl(): Plugin {
 /**
  * 변환기의 빌드 설정.
  *
- * 셸(`index.html` · `src/main.ts`)은 빈 칸을 내주고 `src/panel.ts` 의
+ * 셸(`index.html` · `src/main.ts`)은 빈 칸을 내주고 `src/app/panel.ts` 의
  * `mountConverters` 하나만 부른다. 화면 뼈대·스타일·논리는 전부 `src/` 가 갖는다.
  *
  * 별명은 전부 **이 폴더 안의 node_modules** 를 가리킨다. 라이브러리마다 ESM

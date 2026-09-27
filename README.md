@@ -27,95 +27,18 @@ Internet Explorer 는 받지 않는다.
 [취약점 신고](SECURITY.md) · [구현 계획](IMPLEMENTATION_PLAN.md) ·
 [검증 기록·재현 방법](VALIDATION.md)
 
+코드 위치는 [기능별 코드 안내](web/src/README.md)를 먼저 본다.
+[모듈화·탐색 비용 검토와 수정 내역](MODULARITY_REVIEW.md)도 함께 기록했다.
+
 ```text
-convertors/
-  web/index.html      셸 — 빈 칸 하나와 <script src="/src/main.ts"> 뿐이다
-  web/src/
-    main.ts           셸이 하는 일의 전부 — #converters-root 에 mountConverters 를 부른다
-    styles.css        색 변수·바탕 글꼴·바깥 여백. 어느 도구에도 딸리지 않는 것만 둔다
-    panel.ts          머리말과 변환 고르기. 고른 하나만 아래에 세운다
-    pdf-panel.ts      PDF 파일 추가·쪽 선택·순서·회전·분할·다운로드, HWPX 저장
-    pdf-edit-panel.ts PDF 글자 고치기 화면 — 쪽 위 글자 상자를 눌러 고친다
-    pdf-edit.ts       덮고 다시 쓰기. 글꼴 심기·덮을 자리·자리에 맞게 줄이기
-    pdf-edit.test.ts  덮는 자리·줄이기·경고·한도를 고정
-    pdf-source-font.ts   원본이 이미 심어 둔 글꼴을 심지 않고 가리켜 쓴다
-    pdf-source-font.test.ts  /W 두 꼴·bfrange·못 읽는 글꼴에서 물러나기를 고정
-    sfnt.ts           글꼴 손질 — 배치 테이블 떼기(fontkit 이 거기서 죽는다)와
-                      글리프 짝수 맞추기(서브셋 loca 가 홀수 자리를 못 담는다)
-    sfnt.test.ts      떼기·자리 맞추기·내용 보존·검사합 재계산·못 쓰는 글꼴 거절
-    fonts.ts          심을 수 있는 글꼴 목록. 고른 하나만 받아서 붙든다
-    fonts.test.ts     받아 온 글꼴 전부를 실제로 심어 한글을 되읽는다
-    pdf.ts            pdf-lib 기반 PDF 읽기·쪽 복사·저장·범위 검증
-    pdf.test.ts       저장한 PDF 를 다시 열어 병합·분할·순서·회전 확인
-    pdf-render.ts     PDF.js 로 쪽을 여닫고 그린다 — 아래 둘이 함께 쓴다
-    pdf-hwpx.ts       쪽을 그리거나 글자를 뽑아 HWPX 로. 한도·진행·취소
-    pdf-images.ts     쪽을 PNG·JPEG 로. 여러 장이면 ZIP 하나로 묶는다
-    pdf-text.ts       글자 좌표 → 읽는 순서·문단·단순 표 (추정이다)
-    pdf-text.test.ts  정렬·표 오인·빈 입력을 고정
-    hwpx-writer.ts    쪽마다 구역 하나인 HWPX 패키지를 짓는다
-    images-pdf.ts     그림 여러 장 → PDF 한 벌. 다시 압축하지 않는다
-    images-pdf.test.ts  형식 판별·비율 맞춤·그림 아닌 파일 거절
-    images-pdf-panel.ts 이미지 → PDF 화면. PNG·JPEG 밖은 캔버스로 바꾼다
-    markdown.ts       Markdown·텍스트 → 문단과 표 (DOM 을 쓰지 않는다)
-    markdown.test.ts  표 오인·칸 수 어긋남·제어 문자·텍스트 모드를 고정
-    text-hwpx-panel.ts  텍스트·Markdown → HWPX 화면
-    encoding.ts       CP949 ↔ UTF-8, BOM, 줄바꿈. 쓰기 표는 디코더를 뒤집어 만든다
-    encoding.test.ts  판별·왕복·담을 수 없는 글자에서 멈추는지
-    encoding-panel.ts 인코딩 변환 화면 — 판별이 추정이면 그렇게 적는다
-    zip-panel.ts      ZIP 묶기·풀기 화면
-    converters.css    이 기능 전용 스타일
-    hwpx.ts           HWPX(OWPML) → 문단·표 → Markdown
-    hwpx.test.ts      실제 규격서에서 겪은 것들(ID 잘림·병합 칸 밀림)을 고정
-    zip.ts            ZIP 읽기 — HWPX 가 ZIP 이다. zip-slip·압축폭탄 방어 포함
-    zip.test.ts
-    errors.ts         오류를 화면에 보일 말로. 낡은 화면의 조각 오류를 알아본다
-    errors.test.ts    브라우저 셋의 말투를 고정
-    zip-fixture.ts    테스트용 ZIP 조립기(화면은 부르지 않는다)
-    kit.ts            뒤에 들인 도구들이 함께 쓰는 화면 조각 — 상태 줄·내려받기·복사
-    pdf-stamp.ts      워터마크·쪽번호. 돌아간 쪽·CropBox 에서 보이는 자리를 셈한다
-    pdf-sign.ts       서명·도장 그림을 고른 자리에 얹는다 (전자서명 아님)
-    pdf-nup.ts        한 장에 2·4·6·9쪽 모아찍기, 잉크 비율로 빈 쪽 후보 찾기
-    pdf-meta.ts       문서 정보(Info·XMP) 보기·고치기·지우기. 남은 옛 객체까지 걷는다
-    image-convert.ts  이미지 형식·크기. 캔버스를 거치므로 EXIF 가 빠진다
-    text-diff.ts      Myers 줄 비교 + 글자 단위 강조, unified diff 내보내기
-    text-count.ts     글자·바이트·원고지 매수(추정)
-    redact.ts         주민번호·전화·이메일·카드·계좌·여권번호를 모양으로 찾아 가린다
-    money.ts          금액 ↔ 한글·갖은자 표기 (BigInt, 9999경까지)
-    vat.ts            부가세 — 공급가액·세액·합계, 원 미만 버림·반올림·올림
-    dates.ts          D-day·N일 뒤·영업일. 시간대 없이 날 번호로만 센다
-    bizno.ts          사업자·법인등록번호 검증 숫자
-    sheet-tools.ts    표 합치기·나누기 (sheet-tools.worker.ts 안에서만 SheetJS 를 부른다)
-    rename.ts         이름 틀·찾아 바꾸기·번호, 윈도우가 못 쓰는 이름 걸러 내기
-    hash.ts           MD5(조각 단위) · SHA 는 crypto.subtle
-    qr.ts             QR 내용(Wi-Fi·vCard …)과 SVG. 부호화는 qrcode-generator
-    *-panel.ts        위 도구마다 화면 하나. 고를 때 가서 받아 온다
-    *.test.ts         도구마다 계산을 고정한다
-    assets/           HWPX 뼈대 파일과 그 출처·라이선스
-    hwpx-probe.ts     한 쪽짜리 최소 HWPX 생성기 (probe.html, 개발 검증용)
-  web/wrangler.jsonc  Cloudflare 배포 정의. `main` 이 없다 — 올라가는 것은 자산뿐이다
-  web/scripts/
-    검사 — 앞의 넷은 CHECK_BROWSER 로 chromium·firefox·webkit 을 고를 수 있다
-    check-converters.mjs    실제 브라우저로 공개 화면을 조작해 산출물을 검사
-    check-formats.mjs       문서·스프레드시트 변환을 형식마다 열어 내용을 확인
-    check-hwpx.mjs          한 쪽 HWPX 의 패키지 구조·쪽 크기·PNG 픽셀 검사
-    check-office-tools.mjs  뒤에 들인 도구 16개를 실제로 열고 산출물을 검사
-    check-a11y.mjs          이름 없는 조작 요소·건너뛴 제목 단계·모자란 대비를 찾는다
-    check-bundle.mjs        첫 화면이 받는 JS 를 재고 예산을 넘으면 죽는다
-    check-deploy.mjs        배포 모양 그대로(CSP·헤더·자산·404) 검사한다
-    cf_build.sh             Cloudflare 빌드 단계 — npm ci → 글꼴 → dist
-    cf_deploy.sh            Cloudflare 배포 단계 — wrangler 에 인자를 넘긴다
-    fetch_fonts.py          심을 한글 글꼴을 npm 에서 받아 web/public/fonts/ 로
-    gen_licenses.mjs        node_modules 에서 제3자 고지를 뽑는다 (손으로 적지 않는다)
-    gen-icons.mjs           파비콘·공유 미리보기 그림을 굽는다
-  web/public/
-    _headers          CSP — 파일이 나가지 않는다는 약속을 브라우저가 지키게 한다
-    robots.txt        검색에는 열려 있고 AI 학습·요약용 수집에는 닫혀 있다
-    licenses/         제3자 라이선스 원문. 화면 아래 고지가 이것을 가리킨다
-    favicon.svg · og.png   탭 아이콘과 공유 미리보기
-  desktop/
-    hwp-to-hwpx.ps1   한글 COM 으로 .hwp → .hwpx (Windows + 한글 설치 필요)
-    verify-hwpx.ps1   만든 HWPX 를 한글에서 열어 본다
-  LICENSE · THIRD-PARTY-NOTICES.md · SECURITY.md · CHANGELOG.md
+web/src/main.ts       앱 진입점
+web/src/app/          도구 등록·선택·페이지 스타일
+web/src/features/    documents, spreadsheets, pdf, images, text, office, files
+web/src/shared/      공통 UI·오류·ZIP 파서
+web/src/testing/     테스트 픽스처
+web/src/assets/      HWPX 템플릿·라이선스
+web/scripts/         브라우저 검증·빌드·배포 도구
+desktop/             Windows 한글 COM 변환·검증
 ```
 
 ## 원본 글꼴을 그대로 쓴다
@@ -227,11 +150,11 @@ HWPX → Markdown 화면이 그 사실과 함께 데스크톱 스크립트를 �
 - 셸(`index.html` · `main.ts`)은 빈 칸을 내주고 진입점 하나(`panel.ts` 의
   `mountConverters`)만 부른다. 화면 뼈대·스타일·논리는 전부 `src/` 가 갖는다.
   그 경계가 있어야 이 변환기를 탭이 여럿인 다른 셸에 그대로 옮겨 붙일 수 있다.
-- **`src/` 바깥에 공유 코드를 두지 않는다.** 여러 도구가 함께 쓰는 것은 `kit.ts`
+- **`src/` 바깥에 공유 코드를 두지 않는다.** 여러 도구가 함께 쓰는 것은 `shared/kit.ts`
   처럼 이 폴더 안에 둔다 — 밖에 둔 공유부는 거기 생긴 문제 하나를 여러 도구의
   장애로 번지게 한다.
 - 고른 도구만 받아 온다. 도구가 스물다섯이고 PDF 라이브러리가 무거워서, QR 하나
-  만들려는 사람이 그것을 다 내려받을 이유가 없다 (`panel.ts` 의 `import()`).
+  만들려는 사람이 그것을 다 내려받을 이유가 없다 (`app/tool-registry.ts` 의 `import()`).
   이 약속은 말로만 두지 않고 `check-bundle.mjs` 가 번번이 잰다.
 - **무엇을 보장하고 무엇을 보장하지 못하는지 화면에 적는다.** 변환 품질은
   입력에 따라 달라지므로, 그것을 숨기면 신뢰를 잃는다.
@@ -246,7 +169,7 @@ HWPX → Markdown 화면이 그 사실과 함께 데스크톱 스크립트를 �
 
 ```bash
 npm --prefix web install       # 처음 한 번
-npm --prefix web test          # web/src/*.test.ts — 파일 30개, 413건
+npm --prefix web test          # web/src/**/*.test.ts — 기능별 인접 테스트
 npm --prefix web run typecheck
 ```
 
