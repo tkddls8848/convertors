@@ -24,6 +24,9 @@
 PDF 글자 편집의 진입점은 `features/pdf/pdf-edit-panel.ts`다.
 마크업은 `pdf-edit-view.ts`, 글자 좌표·원본 글꼴 매칭은 `pdf-edit-spans.ts`,
 폭 측정·캐시는 `pdf-edit-measure.ts`, PDF 저장 로직은 `pdf-edit.ts`가 맡는다.
+원래 글자를 PDF 안에서 빼는 일은 `pdf-redact-core.ts`(PDFium 호출과 지운 뒤 확인),
+그 일꾼은 `pdf-redact.worker.ts`, 화면 쪽 호출은 `pdf-redact.ts`다. 테스트는
+`pdf-redact-node.ts` 로 같은 wasm 을 Node 에서 띄운다.
 
 저장소 루트에서:
 

@@ -31,6 +31,7 @@ import assert from 'node:assert/strict';
 const require = createRequire(new URL('../package.json', import.meta.url));
 const { chromium } = require('playwright');
 const { unzipSync, strFromU8 } = require('fflate');
+const { PDFDocument } = require('pdf-lib');
 
 // 포트를 18xxx 대에서 고른다. 윈도우는 Hyper-V·WinNAT 용으로 TCP 포트 100개씩을
 // 통째로 예약해 두는데(`netsh interface ipv4 show excludedportrange protocol=tcp`)
@@ -230,6 +231,16 @@ try {
   await page.locator('[data-choice="pdf"]').click();
   await page.locator('#conv-pdf-file').waitFor();
 
+  // PDF 글자 지우기 — PDFium 일꾼이 이 사이트의 wasm 을 CSP 아래에서 받아 돌아야 한다.
+  // 패키지 기본값(CDN)으로 새면 아래 '바깥으로 나간 요청' 이 잡는다.
+  const sample = await PDFDocument.create();
+  sample.addPage([400, 300]).drawText('ERASE ME', { x: 40, y: 200, size: 18 });
+  await page.locator('[data-choice="pdf-edit"]').click();
+  await page.locator('#conv-edit-file').setInputFiles({ name: 'erase.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await sample.save()) });
+  await page.locator('.conv-pdf-edit .edit-span').first().click();
+  await page.locator('.conv-pdf-edit .edit-erase').click();
+  await page.locator('.conv-pdf-edit').getByText('지웠습니다. 원래 글자는 파일에서 빠졌습니다.', { exact: true }).waitFor({ timeout: 60_000 });
+
   await page.waitForTimeout(1000);
   assert.deepEqual(external, [], `바깥으로 나간 요청이 있다: ${external.join(', ')}`);
   assert.deepEqual(violations, [], `CSP 위반·오류: ${violations.join(' | ')}`);
@@ -249,5 +260,5 @@ const 주소 = !site
 console.log(
   `PASS: 보안 헤더(CSP connect-src 'self', ${색인}), /pdf-assets·robots.txt 실림, ` +
   `글꼴 목록 ${fonts.length}종, 파비콘·OG 이미지 성함, 메타 태그 갖춤, ` +
-  `${주소}, 없는 주소 404, CSP 켠 채 문서→HWPX 왕복, 바깥 요청 없음.`,
+  `${주소}, 없는 주소 404, CSP 켠 채 문서→HWPX 왕복·PDF 글자 지우기(PDFium wasm), 바깥 요청 없음.`,
 );

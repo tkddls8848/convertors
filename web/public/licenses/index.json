@@ -3,11 +3,11 @@
   "schema": 1,
   "note": "이 파일은 생성물이다. 손으로 고치지 마라. 시각을 찍지 않으므로 같은 설치본이면 같은 내용이 나온다.",
   "counts": {
-    "total": 29,
+    "total": 31,
     "byKind": {
       "font": 9,
-      "npm": 6,
-      "npm-bundled": 9,
+      "npm": 7,
+      "npm-bundled": 10,
       "npm-transitive": 4,
       "vendored": 1
     },
@@ -15,10 +15,10 @@
       "(MIT AND Zlib)": 1,
       "0BSD": 1,
       "Apache-2.0": 4,
-      "Apache-2.0 + BSD 계열": 1,
+      "Apache-2.0 + BSD 계열": 2,
       "BSD 계열": 4,
       "CC0-1.0": 1,
-      "MIT": 6,
+      "MIT": 7,
       "MIT 계열": 2,
       "OFL-1.1": 9
     },
@@ -26,6 +26,42 @@
     "copyleft": 0
   },
   "components": [
+    {
+      "id": "embedpdf-pdfium",
+      "name": "@embedpdf/pdfium",
+      "version": "2.15.1",
+      "license": "MIT",
+      "licenseSource": "package.json",
+      "kind": "npm",
+      "via": null,
+      "author": "Bob Singor, Ji Chang",
+      "contributors": "",
+      "homepage": "https://www.embedpdf.com/docs/pdfium/introduction",
+      "repository": "https://github.com/embedpdf/embed-pdf-viewer",
+      "full": true,
+      "textSource": "node_modules/@embedpdf/pdfium/LICENSE",
+      "file": "embedpdf-pdfium.LICENSE",
+      "copyleft": false
+    },
+    {
+      "id": "embedpdf-pdfium-pdfium",
+      "name": "@embedpdf/pdfium 에 함께 실린 것: LICENSE.pdfium",
+      "version": "2.15.1",
+      "license": "Apache-2.0 + BSD 계열",
+      "licenseSource": "content-sniff",
+      "kind": "npm-bundled",
+      "via": "@embedpdf/pdfium",
+      "author": "",
+      "contributors": "",
+      "homepage": "https://www.embedpdf.com/docs/pdfium/introduction",
+      "repository": "https://github.com/embedpdf/embed-pdf-viewer",
+      "full": true,
+      "textSource": "node_modules/@embedpdf/pdfium/LICENSE.pdfium",
+      "file": "embedpdf-pdfium-pdfium.LICENSE",
+      "copyleft": false,
+      "covers": null,
+      "contents": null
+    },
     {
       "id": "fflate",
       "name": "fflate",

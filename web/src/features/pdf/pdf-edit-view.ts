@@ -4,11 +4,12 @@ const ZOOMS = [1, 1.5, 2, 3];
 export function pdfEditMarkup(): string {
   return `
     <h2>PDF 글자 고치기</h2>
-    <p class="conv-note">쪽 위의 글자를 눌러 다른 글자로 바꿉니다. <strong>원본과 같은 글꼴</strong>로 쓰는 것이 기본이고, 다른 글꼴과 크기도 고를 수 있습니다. 최대 64MB.</p>
+    <p class="conv-note">쪽 위의 글자를 눌러 다른 글자로 바꾸거나 지우고, 빈 곳에 새 글자를 넣습니다. <strong>원본과 같은 글꼴</strong>로 쓰는 것이 기본이고, 다른 글꼴과 크기도 고를 수 있습니다. 최대 64MB.</p>
     <ul class="conv-note edit-caveats">
-      <li><strong>원래 글자는 지워지지 않습니다.</strong> 그 자리를 덮고 위에 새로 쓰는 방식이라, 덮인 글자는 파일 안에 남아 글자를 뽑아 보면 나옵니다 — <strong>가려야 할 내용을 감추는 용도로 쓰면 안 됩니다.</strong></li>
+      <li><strong>원래 글자는 파일에서 지워집니다.</strong> 덮어 가리는 것이 아니라 그 글자를 PDF 안에서 빼기 때문에, 글자를 뽑아도 나오지 않고 밑에 있던 그림·무늬도 그대로 보입니다. 다 지웠는지 확인한 뒤에 저장하고, 하나라도 남으면 저장하지 않고 알립니다.</li>
+      <li>지운 글자의 <strong>모양은 글꼴 안에 남을 수 있습니다.</strong> 문장은 되살릴 수 없지만, 그 문서에 어떤 글자들이 쓰였는지는 글꼴을 열어 보면 알 수 있습니다.</li>
       <li><strong>원본 글꼴을 그대로 쓸 수 있습니다</strong> — 다만 <strong>원본 문서에 이미 나온 글자</strong>만 됩니다. PDF 는 쓰인 글자의 모양만 담고 있어서, 한 번도 나오지 않은 글자는 그 글꼴로 그릴 수 없습니다. 그런 글자가 있으면 화면이 짚어 주고 닮은 글꼴로 물러납니다.</li>
-      <li>덮을 자리의 배경이 단색이 아니면(무늬·그림·표선 위) <strong>덮은 자국이 보입니다.</strong></li>
+      <li>글자를 그림이나 선으로 그린 문서(스캔본, 윤곽선으로 바꾼 글자)는 지울 글자가 없어 고칠 수 없습니다.</li>
     </ul>
     <label class="conv-drop" for="conv-edit-file">
       <input id="conv-edit-file" type="file" accept=".pdf,application/pdf" />
@@ -22,16 +23,18 @@ export function pdfEditMarkup(): string {
         <button type="button" data-action="prev">◀ 이전 쪽</button>
         <span class="edit-page"></span>
         <button type="button" data-action="next">다음 쪽 ▶</button>
+        <button type="button" data-action="add" class="edit-add">글자 추가</button>
         <label>확대 <select class="edit-zoom">${ZOOMS.map(z => `<option value="${z}"${z === 1.5 ? ' selected' : ''}>${z * 100}%</option>`).join('')}</select></label>
       </div>
       <div class="edit-stage">
         <canvas class="edit-canvas"></canvas>
         <div class="edit-spans"></div>
+        <div class="edit-spot" hidden></div>
       </div>
-      <p class="conv-note edit-hint">쪽 위의 글자 상자를 누르면 그 자리를 고칩니다.</p>
+      <p class="conv-note edit-hint">쪽 위의 글자 상자를 누르면 그 자리를 고치거나 지웁니다. 빈 곳에 넣으려면 <strong>글자 추가</strong>를 누른 뒤 넣을 자리를 누르세요.</p>
 
       <div class="edit-form" hidden>
-        <h3>이 자리 고치기</h3>
+        <h3 class="edit-form-title">이 자리 고치기</h3>
         <p class="edit-original conv-note"></p>
         <label class="conv-label" for="conv-edit-text">새 글자</label>
         <textarea id="conv-edit-text" class="conv-input" rows="2" spellcheck="false"></textarea>
@@ -40,9 +43,7 @@ export function pdfEditMarkup(): string {
           <label>크기 <input class="edit-size" type="number" min="${EDIT_LIMITS.minSize}" max="${EDIT_LIMITS.maxSize}" step="0.5" /></label>
           <label>글자색 <input class="edit-color" type="color" value="#000000" /></label>
         </div>
-        <div class="conv-actions">
-          <label>덮을 색 <input class="edit-cover" type="color" value="#ffffff" /></label>
-          <label><input type="checkbox" class="edit-auto-cover" checked /> 배경색 자동</label>
+        <div class="conv-actions edit-shrink-row">
           <label><input type="checkbox" class="edit-shrink" checked /> 넘치면 크기 자동 줄임</label>
         </div>
         <div class="conv-actions">
@@ -51,9 +52,11 @@ export function pdfEditMarkup(): string {
         </div>
         <p class="edit-fit conv-note"></p>
         <div class="conv-actions">
-          <button type="button" class="conv-download" data-action="apply">이 자리 고치기</button>
+          <button type="button" class="conv-download edit-apply" data-action="apply">이 자리 고치기</button>
+          <button type="button" class="edit-erase" data-action="erase">이 자리 지우기</button>
           <button type="button" data-action="dismiss">그만두기</button>
         </div>
+        <p class="conv-note edit-erase-note">지우기는 이 조각의 글자를 파일에서 뺍니다. 그 자리에는 아무것도 그리지 않습니다.</p>
       </div>
 
       <h3>고친 자리</h3>

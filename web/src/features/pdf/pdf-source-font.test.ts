@@ -5,11 +5,11 @@
  * Type3 의 사전형 /Encoding, bfrange)을 그대로 담아 두기 위해서다 — 그 가운데
  * 하나만 어긋나도 화면은 아무 말 없이 "원본 글꼴 없음" 으로 물러난다.
  */
-import { PDFDocument, PDFName, PDFRawStream, decodePDFRawStream } from 'pdf-lib';
+import { PDFDict, PDFDocument, PDFName, PDFRawStream, PDFRef, decodePDFRawStream } from 'pdf-lib';
 import { describe, expect, it } from 'vitest';
 
 import { applyTextEdits, sourceFontId, type TextEdit } from './pdf-edit';
-import { closestFont, readSourceFonts, type SourceFont } from './pdf-source-font';
+import { carrySourceFont, closestFont, readSourceFonts, type SourceFont } from './pdf-source-font';
 
 /** ToUnicode CMap 한 벌. 코드 → 글자를 적는다(우리는 그것을 뒤집어 쓴다). */
 const cmap = (body: string): string =>
@@ -107,16 +107,18 @@ describe('닮은 글꼴 고르기', () => {
 });
 
 describe('원본 글꼴로 고쳐 저장하기', () => {
+  // 이 문서에는 그려진 글자가 없다. 지우기 없이 그리는 길(넣기)로 글꼴만 본다.
+  // 지운 뒤 원본 글꼴로 다시 쓰는 길은 pdf-edit.test.ts 가 실제 PDFium 으로 본다.
   const edit = (over: Partial<TextEdit> = {}): TextEdit => ({
-    page: 1, x: 30, y: 100, width: 50, height: 12,
+    kind: 'add', page: 1, x: 30, y: 100,
     text: '가나다', size: 12, fontId: sourceFontId('F1'),
-    color: { r: 0, g: 0, b: 0 }, cover: { r: 1, g: 1, b: 1 },
-    original: '가나다', ...over,
+    color: { r: 0, g: 0, b: 0 }, original: '', ...over,
   });
+  const redact = (): Promise<Uint8Array> => Promise.reject(new Error('지울 자리가 없어야 합니다.'));
 
   it('글꼴을 심지 않고 원본 자원을 그대로 가리킨다', async () => {
     const source = await makeType0({});
-    const { bytes } = await applyTextEdits(source, [edit()], []);
+    const { bytes } = await applyTextEdits(source, [edit()], [], redact);
 
     // 심었다면 글꼴 파일이 통째로 들어가 파일이 크게 불어난다.
     expect(bytes.length - source.length).toBeLessThan(2048);
@@ -128,13 +130,65 @@ describe('원본 글꼴로 고쳐 저장하기', () => {
 
   it('원본에 없는 글자는 그리기 전에 멈춘다', async () => {
     // 그려 버리면 빈칸이 찍힌다. 조용히 사라지게 두지 않는다.
-    await expect(applyTextEdits(await makeType0({}), [edit({ text: '가라' })], []))
+    await expect(applyTextEdits(await makeType0({}), [edit({ text: '가라' })], [], redact))
       .rejects.toThrow(/원본 글꼴에 없는 글자/);
   });
 
   it('없는 자원을 가리키면 이름을 대고 멈춘다', async () => {
-    await expect(applyTextEdits(await makeType0({}), [edit({ fontId: sourceFontId('F9') })], []))
+    await expect(applyTextEdits(await makeType0({}), [edit({ fontId: sourceFontId('F9') })], [], redact))
       .rejects.toThrow(/원본 글꼴을 찾지 못했습니다/);
+  });
+});
+
+describe('지운 문서로 원본 글꼴 옮겨 오기', () => {
+  // PDFium 은 글자를 지우고 다시 쓰면서 자원 이름을 바꾼다(/F1 → /FXF1). 그 글꼴로
+  // 쓰던 글자를 다 지웠으면 쪽 자원에서 빠지기도 한다. 객체 번호는 지킨다.
+  const fontsOf = (document: PDFDocument): PDFDict => document.getPage(0).node.normalizedEntries().Font;
+
+  it('같은 문서면 그 이름 그대로 쓴다', async () => {
+    const document = await PDFDocument.load(await makeType0({}));
+    const font = carrySourceFont(document.getPage(0), 'F1', document.getPage(0));
+    expect(font?.resource).toBe('F1');
+  });
+
+  it('이름이 바뀌었으면 같은 객체를 가리키는 새 이름을 찾는다', async () => {
+    const source = await makeType0({});
+    const renamed = await PDFDocument.load(source);
+    const fonts = fontsOf(renamed);
+    fonts.set(PDFName.of('FXF1'), fonts.get(PDFName.of('F1'))!);
+    fonts.delete(PDFName.of('F1'));
+    const before = renamed.context.largestObjectNumber;
+
+    const font = carrySourceFont((await PDFDocument.load(source)).getPage(0), 'F1', renamed.getPage(0));
+    expect(font?.resource).toBe('FXF1');
+    expect(renamed.context.largestObjectNumber).toBe(before);
+  });
+
+  it('쪽 자원에서 빠졌어도 객체가 남아 있으면 이름만 붙인다', async () => {
+    const source = await makeType0({});
+    const dropped = await PDFDocument.load(source);
+    const ref = fontsOf(dropped).get(PDFName.of('F1')) as PDFRef;
+    fontsOf(dropped).delete(PDFName.of('F1'));
+    const before = dropped.context.largestObjectNumber;
+
+    const font = carrySourceFont((await PDFDocument.load(source)).getPage(0), 'F1', dropped.getPage(0));
+    expect(font?.missing('가나다')).toEqual([]);
+    expect(fontsOf(dropped).get(PDFName.of(font!.resource))).toBe(ref);
+    // 복사하지 않았다 — 글꼴 파일이 두 벌이 되면 파일만 불어난다.
+    expect(dropped.context.largestObjectNumber).toBe(before);
+  });
+
+  it('객체가 없으면 복사해 온다', async () => {
+    const elsewhere = await PDFDocument.create();
+    elsewhere.addPage([300, 200]);
+    const font = carrySourceFont((await PDFDocument.load(await makeType0({}))).getPage(0), 'F1', elsewhere.getPage(0));
+    expect(font?.label).toBe('MalgunGothic');
+    expect(readSourceFonts(elsewhere.getPage(0)).map(found => found.resource)).toContain(font!.resource);
+  });
+
+  it('원본에 없는 이름이면 없음을 돌려준다', async () => {
+    const document = await PDFDocument.load(await makeType0({}));
+    expect(carrySourceFont(document.getPage(0), 'F9', document.getPage(0))).toBeUndefined();
   });
 });
 

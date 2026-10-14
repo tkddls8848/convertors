@@ -96,7 +96,10 @@ try {
   await choose('pdf-edit');
   const edit = page.locator('.conv-pdf-edit');
   const source = await PDFDocument.create();
-  source.addPage([400, 300]).drawText('BEFORE', { x: 40, y: 200, size: 18 });
+  const sourcePage = source.addPage([400, 300]);
+  // 노란 띠 위의 글자. 지운 자리에 흰 상자 같은 자국이 남는지 이 띠로 본다.
+  sourcePage.drawRectangle({ x: 20, y: 185, width: 360, height: 45, color: rgb(1, 0.9, 0.6) });
+  sourcePage.drawText('BEFORE', { x: 40, y: 200, size: 18 });
   await edit.locator('#conv-edit-file').setInputFiles({ name: 'edit.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await source.save()) });
   await edit.getByText('edit.pdf · 1쪽. 고칠 글자를 누르세요.', { exact: true }).waitFor();
 
@@ -151,8 +154,8 @@ try {
   await edit.getByText('edited.pdf · 1쪽. 고칠 글자를 누르세요.', { exact: true }).waitFor();
   const backTitles = await edit.locator('.edit-span').evaluateAll(nodes => nodes.map(node => node.title).join('|'));
   assert.match(backTitles, /고친 글자/, `저장한 PDF 에서 고친 글자를 찾지 못했습니다: ${backTitles}`);
-  // 덮어쓰기는 원래 글자를 지우지 않는다. 화면이 그렇게 약속했으니 그대로여야 한다.
-  assert.match(backTitles, /BEFORE/, '덮인 원래 글자가 사라졌습니다 — 화면의 설명과 어긋납니다.');
+  // 바꾸기는 원래 글자를 파일에서 뺀다. 남아 있으면 덮어 가린 것일 뿐이다.
+  assert.doesNotMatch(backTitles, /BEFORE/, '바꾼 원래 글자가 파일에 남아 있습니다.');
 
   // 원본 글꼴 그대로 고치기. 방금 저장한 PDF 는 한글 글꼴을 갖고 있으므로,
   // 그 글꼴을 **다시 심지 않고 가리켜** 같은 글꼴로 고칠 수 있어야 한다.
@@ -186,6 +189,57 @@ try {
   await edit.getByText('reused.pdf · 1쪽. 고칠 글자를 누르세요.', { exact: true }).waitFor();
   const reusedTitles = await edit.locator('.edit-span').evaluateAll(nodes => nodes.map(node => node.title).join('|'));
   assert.match(reusedTitles, /고친 자/, `원본 글꼴로 쓴 글자를 찾지 못했습니다: ${reusedTitles}`);
+
+  // 지우기: 처음 PDF 를 다시 열어 BEFORE 를 덮기만 한다. 쪽에서 먹이 사라져야 한다.
+  await edit.locator('#conv-edit-file').setInputFiles({ name: 'erase.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await source.save()) });
+  await edit.getByText('erase.pdf · 1쪽. 고칠 글자를 누르세요.', { exact: true }).waitFor();
+  const unerased = await ink();
+  await edit.locator('.edit-span').first().click();
+  await edit.getByRole('button', { name: '이 자리 지우기', exact: true }).click();
+  await edit.getByText('지웠습니다. 원래 글자는 파일에서 빠졌습니다.', { exact: true }).waitFor();
+  assert.match(await edit.locator('.edit-list li').first().innerText(), /1쪽 · 지움 “BEFORE”/);
+  const erased = await ink();
+  assert.ok(erased < unerased * 0.1, `지운 자리에 글자가 남아 보입니다 (먹 ${unerased} → ${erased}).`);
+  // 지운 자리는 밑의 노란 띠가 그대로 보여야 한다. 흰 상자가 보이면 덮은 것이다.
+  const under = await edit.locator('.edit-canvas').evaluate(canvas => {
+    const ratio = canvas.width / canvas.getBoundingClientRect().width;
+    const scale = canvas.getBoundingClientRect().width / 400;
+    // ‘BEFORE’ 의 가운데쯤 — x 70pt, 기준선 위 6pt.
+    const [r, g, b] = canvas.getContext('2d').getImageData(Math.round(70 * scale * ratio), Math.round((300 - 206) * scale * ratio), 1, 1).data;
+    return [r, g, b];
+  });
+  assert.ok(under[0] > 230 && under[1] > 200 && under[1] < 245 && under[2] < 190, `지운 자리의 배경이 바뀌었습니다: rgb(${under})`);
+
+  // 빈 곳에 넣기: 단추를 누르고 쪽 왼쪽 아래를 눌러 자리를 옮긴 뒤 한글을 넣는다.
+  await edit.getByRole('button', { name: '글자 추가', exact: true }).click();
+  await edit.getByText('새 글자를 넣을 자리입니다. 쪽의 다른 곳을 누르면 그리로 옮깁니다.', { exact: true }).waitFor();
+  assert.equal(await edit.getByRole('button', { name: '이 자리 지우기', exact: true }).isVisible(), false, '넣기에 지우기 단추가 보입니다.');
+  const sheet = await edit.locator('.edit-canvas').boundingBox();
+  await page.mouse.click(sheet.x + sheet.width * 0.2, sheet.y + sheet.height * 0.8);
+  await edit.locator('.edit-font').selectOption('nanum-gothic');
+  await edit.locator('#conv-edit-text').fill('넣은 글자');
+  await edit.getByRole('button', { name: '이 자리에 넣기', exact: true }).click();
+  await edit.getByText('넣었습니다. 아래 미리보기가 저장될 모습입니다.', { exact: true }).waitFor();
+  assert.match(await edit.locator('.edit-list').innerText(), /1쪽 · 추가 “넣은 글자” · 나눔고딕/);
+  assert.ok(await ink() > erased, '넣은 글자가 그려지지 않았습니다.');
+
+  await edit.getByRole('button', { name: '고친 PDF 저장', exact: true }).click();
+  const added = await grab(edit.locator('.edit-outputs a'), 'edited-add-erase.pdf');
+  await edit.locator('#conv-edit-file').setInputFiles({ name: 'added.pdf', mimeType: 'application/pdf', buffer: Buffer.from(added) });
+  await edit.getByText('added.pdf · 1쪽. 고칠 글자를 누르세요.', { exact: true }).waitFor();
+  const addedSpans = await edit.locator('.edit-span').evaluateAll(nodes => nodes.map(node => ({
+    title: node.title,
+    left: parseFloat(node.style.left),
+    top: parseFloat(node.style.top),
+  })));
+  const placed = addedSpans.find(span => span.title.includes('넣은 글자'));
+  assert.ok(placed, `넣은 글자를 찾지 못했습니다: ${addedSpans.map(span => span.title).join('|')}`);
+  // 누른 자리(왼쪽 20%, 위에서 80%)에 들어갔는지. 기준선이 누른 점이라 글자 윗변은 조금 위에 있다.
+  const stageSize = await edit.locator('.edit-canvas').boundingBox();
+  assert.ok(Math.abs(placed.left - stageSize.width * 0.2) < 8, `넣은 글자가 누른 자리에서 가로로 벗어났습니다: ${placed.left}`);
+  assert.ok(placed.top > stageSize.height * 0.6 && placed.top < stageSize.height * 0.8, `넣은 글자가 누른 자리에서 세로로 벗어났습니다: ${placed.top}`);
+  // 지운 글자는 파일에서 빠졌다. 도로 열어 뽑아도 나오지 않아야 한다.
+  assert.ok(!addedSpans.some(span => span.title.includes('BEFORE')), '지운 원래 글자가 파일에 남아 있습니다.');
 
   await choose('images-pdf');
   const imgTool = page.locator('.conv-images-pdf');
@@ -268,5 +322,5 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.screenshot({ path: fileURLToPath(new URL('converters-mobile.png', out)), fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: chooser (one tool at a time, state kept), PDF text overwrite (Korean font embed + extract-back, source-font reuse + missing-glyph refusal), HWPX image/text exports, tables, mixed page sizes, scanned-page error/image/skip, selection/rotation, cancellation, PDF→image (zip/single), image→PDF (native/A4), text→HWPX, encoding detect/convert/refuse, ZIP pack/unpack, mobile layout.');
+  console.log('PASS: chooser (one tool at a time, state kept), PDF text edit (true removal via PDFium, Korean font embed + extract-back, source-font reuse after removal + missing-glyph refusal, erase keeps background, add at clicked spot), HWPX image/text exports, tables, mixed page sizes, scanned-page error/image/skip, selection/rotation, cancellation, PDF→image (zip/single), image→PDF (native/A4), text→HWPX, encoding detect/convert/refuse, ZIP pack/unpack, mobile layout.');
 } finally { await browser.close(); }

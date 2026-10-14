@@ -8,7 +8,7 @@
 라이선스가 적용되지 않고 각자의 라이선스가 그대로 적용된다.** 원문은 전부
 [`web/public/licenses/`](web/public/licenses/) 에 함께 배포한다.
 
-구성요소 **29건**. 라이선스별로는 (MIT AND Zlib) 1건, 0BSD 1건, Apache-2.0 4건, Apache-2.0 + BSD 계열 1건, BSD 계열 4건, CC0-1.0 1건, MIT 6건, MIT 계열 2건, OFL-1.1 9건.
+구성요소 **31건**. 라이선스별로는 (MIT AND Zlib) 1건, 0BSD 1건, Apache-2.0 4건, Apache-2.0 + BSD 계열 2건, BSD 계열 4건, CC0-1.0 1건, MIT 7건, MIT 계열 2건, OFL-1.1 9건.
 
 ## 상류가 전문을 배포하지 않는 것
 
@@ -22,12 +22,13 @@
 | @pdf-lib/fontkit | MIT | `node_modules/@pdf-lib/fontkit/README.md 의 라이선스 절` |
 | qrcode-generator | MIT | `node_modules/qrcode-generator/dist/qrcode.mjs 의 머리말 주석` |
 
-## 직접 의존하는 npm 패키지 (6)
+## 직접 의존하는 npm 패키지 (7)
 
 `web/package.json` 의 `dependencies`. 번들에 실려 사용자에게 배포된다.
 
 | 이름 | 판본 | 라이선스 | 원문 |
 | --- | --- | --- | --- |
+| @embedpdf/pdfium | 2.15.1 | MIT | [`embedpdf-pdfium.LICENSE`](web/public/licenses/embedpdf-pdfium.LICENSE) |
 | fflate | 0.8.3 | MIT | [`fflate.LICENSE`](web/public/licenses/fflate.LICENSE) |
 | pdf-lib | 1.17.1 | MIT | [`pdf-lib.LICENSE`](web/public/licenses/pdf-lib.LICENSE) |
 | @pdf-lib/fontkit | 1.1.1 | MIT · 전문 없음 | [`pdf-lib-fontkit.LICENSE`](web/public/licenses/pdf-lib-fontkit.LICENSE) |
@@ -46,12 +47,13 @@
 | @pdf-lib/upng | 1.0.1 | MIT | [`pdf-lib-upng.LICENSE`](web/public/licenses/pdf-lib-upng.LICENSE) |
 | tslib | 1.14.1 | 0BSD | [`tslib.LICENSE`](web/public/licenses/tslib.LICENSE) |
 
-## 패키지가 함께 싣는 제3자 자료 (9)
+## 패키지가 함께 싣는 제3자 자료 (10)
 
 pdfjs-dist 가 대표적이다. cmap·기본 글꼴·wasm·ICC 는 코드가 아니라 런타임이 이름으로 찾아 읽는 자료라 번들러가 손대지 않고 `/pdf-assets/…` 로 그대로 실려 나간다. 각자 제 라이선스가 있다.
 
 | 이름 | 판본 | 라이선스 | 원문 |
 | --- | --- | --- | --- |
+| @embedpdf/pdfium 에 함께 실린 것: LICENSE.pdfium | 2.15.1 | Apache-2.0 + BSD 계열 (원문에서 짐작) | [`embedpdf-pdfium-pdfium.LICENSE`](web/public/licenses/embedpdf-pdfium-pdfium.LICENSE) |
 | pdfjs-dist 에 함께 실린 것: cmaps/LICENSE | 6.3.289 | BSD 계열 (원문에서 짐작) | [`pdfjs-dist-cmaps.LICENSE`](web/public/licenses/pdfjs-dist-cmaps.LICENSE) |
 | pdfjs-dist 에 함께 실린 것: iccs/LICENSE | 6.3.289 | CC0-1.0 (원문에서 짐작) | [`pdfjs-dist-iccs.LICENSE`](web/public/licenses/pdfjs-dist-iccs.LICENSE) |
 | pdfjs-dist 에 함께 실린 것: standard_fonts/LICENSE_FOXIT | 6.3.289 | BSD 계열 (원문에서 짐작) | [`pdfjs-dist-standard_fonts-FOXIT.LICENSE`](web/public/licenses/pdfjs-dist-standard_fonts-FOXIT.LICENSE) |

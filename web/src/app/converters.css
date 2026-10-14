@@ -427,6 +427,23 @@
   background: color-mix(in srgb, var(--ok) 20%, transparent);
   border-color: var(--ok);
 }
+/* 새 글자를 넣는 동안에는 글자 상자가 누르는 손을 가로채지 않는다 — 글자 바로
+   옆에도 넣을 수 있어야 한다. 쪽 어디를 눌러도 자리가 옮겨진다. */
+.edit-spans[data-mode='add'] .edit-span { pointer-events: none; }
+.edit-stage:has(.edit-spans[data-mode='add']) { cursor: crosshair; }
+/* 넣을 자리. 점의 가운데가 새 글자 기준선의 왼쪽 끝이다. */
+.edit-spot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  pointer-events: none;
+}
+/* `.conv-actions` 처럼 display 를 정한 칸도 감출 수 있어야 한다. */
+.conv-pdf-edit [hidden] { display: none; }
 
 .edit-hint { margin: 0.5rem 0 0; }
 .edit-form { margin: 1rem 0; padding: 1rem; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }

@@ -397,7 +397,10 @@ for (const name of [...패키지.keys()].sort()) {
   // 이 패키지가 함께 싣는 남의 고지. 개수를 박지 않고 찾은 만큼 담는다.
   const 이미 = new Set([전문 && 해시(전문), 고지경로 && 해시(읽는다(고지경로))].filter(Boolean));
   for (const path of [...라이선스들, ...고지들]) {
-    if (루트(path)) continue;
+    // 루트의 것 가운데 제 것으로 고른 전문·고지만 건너뛴다. 루트에 라이선스를 둘
+    // 두는 패키지가 있다 — @embedpdf/pdfium 은 제 MIT 옆에 wasm 에 든 PDFium 의
+    // BSD 를 LICENSE.pdfium 으로 둔다. 루트를 통째로 건너뛰면 그것이 빠진다.
+    if (path === 전문경로 || path === 고지경로) continue;
     const 내용 = 읽는다(path);
     const h = 해시(내용);
     // 같은 내용을 두 자리에 둔 것뿐이면(xlsx/LICENSE 와 xlsx/dist/LICENSE) 한 번만 낸다.

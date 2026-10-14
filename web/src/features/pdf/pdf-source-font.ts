@@ -21,8 +21,8 @@
  *   - 너비 표가 없는 단순 글꼴 — 폭을 재지 못하면 자리에 맞출 수 없다
  */
 import {
-  PDFArray, PDFDict, PDFHexString, PDFName, PDFNumber, PDFOperator, PDFOperatorNames as Ops,
-  PDFRawStream, decodePDFRawStream, type PDFContext, type PDFObject, type PDFPage,
+  PDFArray, PDFDict, PDFHexString, PDFName, PDFNumber, PDFObjectCopier, PDFOperator, PDFOperatorNames as Ops,
+  PDFRawStream, PDFRef, decodePDFRawStream, type PDFContext, type PDFObject, type PDFPage,
 } from 'pdf-lib';
 
 import type { Rgb } from './pdf-edit';
@@ -62,6 +62,59 @@ export function readSourceFonts(page: PDFPage): SourceFont[] {
     }
   }
   return found;
+}
+
+/**
+ * 원본 쪽(`from`)의 글꼴을 다른 쪽(`to`)에서 쓸 수 있게 한다.
+ *
+ * 글자를 지운 PDF 는 PDFium 이 다시 쓴 것이라 자원 이름이 바뀐다(`/F1` →
+ * `/FXF1`). 그 글꼴로 쓰던 글자를 다 지웠으면 쪽 자원에서 아예 빠진다. 대신
+ * PDFium 은 객체 번호를 지킨다. 그래서 차례로 본다.
+ *
+ *   1. 같은 객체를 가리키는 이름이 이미 있으면 그 이름
+ *   2. 같은 번호의 같은 글꼴이 문서에 남아 있으면 이름만 새로 붙인다
+ *   3. 둘 다 아니면 글꼴을 통째로 복사해 온다
+ *
+ * 3 은 마지막 수단이다. 글꼴 파일이 두 벌이 되어 파일이 불어난다.
+ */
+export function carrySourceFont(from: PDFPage, resource: string, to: PDFPage): SourceFont | undefined {
+  const source = from.doc.context;
+  const fonts = source.lookup(from.node.Resources()?.get(PDFName.of('Font')));
+  if (!(fonts instanceof PDFDict)) return undefined;
+  const entry = fonts.get(PDFName.of(resource));
+  const original = source.lookup(entry);
+  if (!(original instanceof PDFDict)) return undefined;
+
+  const target = to.doc.context;
+  const into = to.node.normalizedEntries().Font;
+  const pick = (key: PDFName): SourceFont | undefined => {
+    const dict = target.lookup(into.get(key));
+    return dict instanceof PDFDict ? read(target, key, dict) ?? undefined : undefined;
+  };
+  const same = (dict: PDFObject | undefined): boolean => dict instanceof PDFDict
+    && name(target.lookup(dict.get(PDFName.of('BaseFont')))) === name(source.lookup(original.get(PDFName.of('BaseFont'))))
+    && name(target.lookup(dict.get(PDFName.of('Subtype')))) === name(source.lookup(original.get(PDFName.of('Subtype'))));
+
+  if (entry instanceof PDFRef) {
+    for (const [key, value] of into.entries()) {
+      if (value instanceof PDFRef && value.objectNumber === entry.objectNumber && same(target.lookup(value))) return pick(key);
+    }
+    if (same(target.lookup(entry))) {
+      const key = freshName(into);
+      into.set(key, entry);
+      return pick(key);
+    }
+  }
+  const key = freshName(into);
+  into.set(key, target.register(PDFObjectCopier.for(source, target).copy(original)));
+  return pick(key);
+}
+
+function freshName(fonts: PDFDict): PDFName {
+  for (let index = 1; ; index++) {
+    const key = PDFName.of(`ConvF${index}`);
+    if (!fonts.has(key)) return key;
+  }
 }
 
 /** 원본 글꼴 자원을 가리켜 한 줄을 그린다. */
