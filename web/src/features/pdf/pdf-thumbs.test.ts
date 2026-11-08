@@ -121,3 +121,21 @@ it('보이기 전에 화면 밖으로 나간 칸은 그리지 않는다', () => 
   calls[0]!.resolve(new Blob(['x']));
   return settle().then(() => expect(calls.map(call => call.index)).toEqual([0, 1]));
 });
+
+it('목록을 다시 세우기 전에 옛 칸을 놓아 준다 — 떼어 낸 칸이 쌓이지 않게', async () => {
+  const { calls, draw } = deferredDraw();
+  const thumbs = createThumbnailer({ root: document.body, draw });
+  const a = source('a.pdf');
+  const old = [0, 1, 2].map(index => { const s = slot(); thumbs.show(s, a, index); return s; });
+  fire(old[0]!);                       // 0쪽은 그리는 중
+  thumbs.clearSlots();
+  old.forEach(s => s.remove());
+  old.slice(1).forEach(s => fire(s));  // 떼어 낸 칸이 보였다는 알림은 무시한다
+  expect(calls.map(call => call.index)).toEqual([0]);
+  const fresh = slot();
+  thumbs.show(fresh, a, 0);            // 새 목록의 같은 쪽 — 그리던 그림이 여기로 온다
+  calls[0]!.resolve(new Blob(['x']));
+  await settle();
+  expect(fresh.querySelector('img.pdf-thumb')).not.toBeNull();
+  expect(old[0]!.querySelector('img')).toBeNull();
+});

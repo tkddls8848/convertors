@@ -20,6 +20,8 @@ export interface Thumbnailer {
   show(slot: HTMLElement, source: PdfSource, index: number): void;
   /** 이 파일의 그림·대기를 버리고 Blob URL 을 거둔다. 진행 중이던 그림은 끝나면 버린다. */
   forget(source: PdfSource): void;
+  /** 목록을 새로 세우기 전에 부른다. 지금까지 받은 칸을 모두 놓아 준다(그리던 그림은 계속 그리고 기억한다). */
+  clearSlots(): void;
   dispose(): void;
 }
 
@@ -124,6 +126,11 @@ export function createThumbnailer(options: { root: HTMLElement; draw: DrawPage; 
         if (at >= 0) queue.splice(at, 1);
       }
     },
+    clearSlots() {
+      for (const slot of wanted.keys()) observer.unobserve(slot);
+      wanted.clear();
+      queue.length = 0;
+    },
     dispose() {
       observer.disconnect();
       for (const source of [...drawn.keys()]) this.forget(source);
@@ -139,10 +146,13 @@ export function createThumbnailer(options: { root: HTMLElement; draw: DrawPage; 
  */
 export function drawWithPdfJs(longSide = 160): DrawPage & { release(source: PdfSource): void } {
   const documents = new Map<PdfSource, PDFDocumentLoadingTask>();
+  // 파일마다 일꾼을 띄우지 않는다. 1,000개 파일이면 일꾼 1,000개(각자 파일 사본을 든다)가 된다.
+  let worker: ReturnType<typeof import('./pdf-render')['sharedWorker']> | undefined;
   const draw = async (source: PdfSource, index: number): Promise<Blob> => {
-    const { openPdf, renderToCanvas } = await import('./pdf-render');
+    const { openPdf, renderToCanvas, sharedWorker } = await import('./pdf-render');
+    worker ??= sharedWorker();
     let task = documents.get(source);
-    if (!task) { task = openPdf(source.bytes); documents.set(source, task); }
+    if (!task) { task = openPdf(source.bytes, worker); documents.set(source, task); }
     const page = await (await task.promise).getPage(index + 1);
     try {
       const base = page.getViewport({ scale: 1 });

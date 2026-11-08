@@ -5,7 +5,7 @@
  * 쪽을 열고 그린다. 두 벌이 되면 한쪽만 고쳐져 결과가 갈리므로 여기 한 벌만 둔다
  * (공유는 이 폴더 안에서만 한다 — 결정 0012).
  */
-import { getDocument, GlobalWorkerOptions, type PageViewport, type PDFDocumentLoadingTask, type PDFPageProxy } from 'pdfjs-dist';
+import { getDocument, GlobalWorkerOptions, PDFWorker, type PageViewport, type PDFDocumentLoadingTask, type PDFPageProxy } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
@@ -25,15 +25,26 @@ export interface RenderedPage {
   height: number;
 }
 
-/** 배포된 자리에서 cmap·글꼴·wasm 을 찾는다. 네트워크 밖으로는 나가지 않는다. */
-export function openPdf(bytes: Uint8Array): PDFDocumentLoadingTask {
+/**
+ * 배포된 자리에서 cmap·글꼴·wasm 을 찾는다. 네트워크 밖으로는 나가지 않는다.
+ *
+ * `worker` 를 주면 그 일꾼 하나로 연다. 주지 않으면 PDF.js 가 문서마다 일꾼을 새로 띄운다 —
+ * 쪽 썸네일처럼 파일 여럿을 오래 열어 두는 곳은 일꾼 하나를 함께 쓴다.
+ */
+export function openPdf(bytes: Uint8Array, worker?: PDFWorker): PDFDocumentLoadingTask {
   const assets = new URL(`${import.meta.env.BASE_URL}pdf-assets/`, location.origin).href;
   return getDocument({
     data: bytes.slice(), stopAtErrors: true,
     cMapUrl: `${assets}cmaps/`, cMapPacked: true,
     standardFontDataUrl: `${assets}standard_fonts/`,
     wasmUrl: `${assets}wasm/`, iccUrl: `${assets}iccs/`,
+    ...(worker ? { worker } : {}),
   });
+}
+
+/** 여러 문서가 함께 쓸 PDF.js 일꾼 하나. */
+export function sharedWorker(): PDFWorker {
+  return new PDFWorker({});
 }
 
 /** 쪽 한 장을 그려 PNG 또는 JPEG 바이트로 돌려준다. */

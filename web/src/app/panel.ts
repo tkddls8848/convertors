@@ -108,8 +108,12 @@ export function mountConverters(root: HTMLElement): void {
         // 고르던 자리까지 함께 움직이면 키보드 사용자가 위치를 잃는다.
         title.focus({ preventScroll: true });
       }
-      // 좁은 화면에서는 접힌 목록 아래로 도구를 끌어올린다. 붙인 뒤에 해야 옮길 높이가 있다.
-      if (narrow()) stage.scrollIntoView?.({ block: 'start', behavior: still() ? 'auto' : 'smooth' });
+      // 좁은 화면에서는 접힌 목록 아래로 도구를 끌어올린다. 넓은 화면에서도 목록이 화면에
+      // 붙어 따라오므로, 아래로 내려 둔 채 고르면 새 도구의 윗부분이 화면 위로 숨는다 —
+      // 그때도 도구의 맨 위로 옮긴다. 붙인 뒤에 해야 옮길 높이가 있다.
+      if (narrow() || stage.getBoundingClientRect().top < 0) {
+        stage.scrollIntoView?.({ block: 'start', behavior: still() ? 'auto' : 'smooth' });
+      }
     }
   };
 

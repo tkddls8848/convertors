@@ -87,3 +87,19 @@ it('목록과 고른 도구가 한 틀 안에 나란히 있다', () => {
   const layout = document.querySelector('.conv-layout')!;
   expect([...layout.children].map(child => child.className)).toEqual(['conv-choices', 'conv-stage']);
 });
+
+it('넓은 화면에서 아래로 내려 둔 채 다른 도구를 고르면 그 도구의 맨 위로 옮긴다', async () => {
+  const stage = document.querySelector<HTMLElement>('.conv-stage')!;
+  const scroll = vi.fn();
+  stage.scrollIntoView = scroll;
+  builders.first.mockImplementation(() => tool('First'));
+  builders.second.mockImplementation(() => tool('Second'));
+  stage.getBoundingClientRect = () => ({ top: 120 } as DOMRect);
+  choose('first');
+  await vi.waitFor(() => expect(document.querySelector('.conv-stage h2')!.textContent).toBe('First'));
+  expect(scroll).not.toHaveBeenCalled();            // 이미 보이면 그대로 둔다
+  stage.getBoundingClientRect = () => ({ top: -480 } as DOMRect);
+  choose('second');
+  await vi.waitFor(() => expect(document.querySelector('.conv-stage h2')!.textContent).toBe('Second'));
+  expect(scroll).toHaveBeenCalledTimes(1);
+});

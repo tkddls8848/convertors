@@ -48,6 +48,8 @@ try {
   await page.locator('#conv-pdf-file').setInputFiles({ name: 'synthetic.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await doc.save()) });
   await page.getByText('1개 파일에서 3쪽을 추가했습니다.', { exact: true }).waitFor();
   await page.waitForFunction(() => document.querySelectorAll('.pdf-pages img.pdf-thumb').length === 3, null, { timeout: 15000 });
+  // 쪽 체크의 접근성 이름은 예전과 같다 — 그림이 들어와도 이름에 섞이지 않는다.
+  assert.equal(await page.getByRole('checkbox', { name: '1. synthetic.pdf · 원본 1쪽 · 0°', exact: true }).count(), 1, '쪽 체크의 접근성 이름이 바뀌었습니다.');
   await page.getByRole('button', { name: '전체 병합·저장', exact: true }).click();
   await page.locator('.pdf-outputs a').first().waitFor();
   await page.waitForTimeout(700); // 결과 칸으로 부드럽게 옮겨 가는 동안
@@ -349,6 +351,17 @@ try {
   assert.ok(await page.locator('.pdf-pages img.pdf-thumb').count() < 100, '보이지 않는 쪽까지 그렸습니다.');
   await page.locator('.pdf-pages').evaluate(list => { list.scrollTop = list.scrollHeight; });
   await page.locator('.pdf-pages li').last().locator('img.pdf-thumb').waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: '초기화', exact: true }).click();
+
+  // 파일이 여럿이어도 쪽 그림용 PDF.js 일꾼은 하나다. 파일마다 하나씩 띄우면 1,000개 파일에 일꾼 1,000개다.
+  const workersBefore = page.workers().length;
+  const many = await Promise.all(Array.from({ length: 30 }, async (_, i) => {
+    const one = await PDFDocument.create(); one.addPage([300, 400]).drawText(`${i + 1}`, { x: 20, y: 360, size: 24 });
+    return { name: `one-${i + 1}.pdf`, mimeType: 'application/pdf', buffer: Buffer.from(await one.save()) };
+  }));
+  await page.locator('#conv-pdf-file').setInputFiles(many);
+  await page.waitForFunction(() => document.querySelectorAll('.pdf-pages img.pdf-thumb').length >= 8, null, { timeout: 15000 });
+  assert.ok(page.workers().length - workersBefore <= 1, `쪽 그림이 일꾼을 ${page.workers().length - workersBefore}개 띄웠습니다.`);
   await page.getByRole('button', { name: '초기화', exact: true }).click();
 
   await page.setViewportSize({ width: 375, height: 812 });

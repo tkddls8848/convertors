@@ -121,6 +121,7 @@ export function pdfTool(): HTMLElement {
     for (const fieldset of fieldsets) fieldset.disabled = busy || !pages.length;
     input.disabled = busy;
     summary.textContent = `${pages.length}쪽 · ${selected.size}쪽 선택`;
+    thumbs.clearSlots();
     list.replaceChildren();
     pages.forEach((page, index) => {
       const row = document.createElement('li');
@@ -139,10 +140,11 @@ export function pdfTool(): HTMLElement {
       // 편집기에서 더한 회전만 그림을 돌려 보여 준다.
       const slot = document.createElement('span');
       slot.className = 'pdf-thumb-slot';
+      slot.setAttribute('aria-hidden', 'true'); // 그림·"미리보기 없음"이 체크 이름에 섞이지 않게
       if (page.rotation) slot.style.transform = `rotate(${page.rotation}deg)`;
       const number = document.createElement('span');
       number.className = 'pdf-page-no';
-      number.textContent = `${index + 1}`;
+      number.textContent = `${index + 1}.`;
       const from = document.createElement('span');
       from.className = 'pdf-page-from';
       from.textContent = `${page.source.name} · 원본 ${page.index + 1}쪽 · ${angle}°`;

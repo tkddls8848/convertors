@@ -79,16 +79,21 @@ try {
     // 고르기 단추로 이동한 스크롤과 도구를 연 뒤의 스크롤을 섞지 않는다.
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const scroll = await page.evaluate(() => scrollY);
+    // 도구 칸이 이미 화면 안이면 스크롤은 그대로여야 하고, 화면 위로 지나쳐 있으면(목록이 화면에
+    // 붙어 따라오므로 생긴다) 새 도구의 맨 위로 옮겨 와야 한다. 어느 쪽이든 제목은 화면 안이다.
+    const stageInView = await page.evaluate(() => document.querySelector('.conv-stage').getBoundingClientRect().top >= 0);
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelectorAll('.conv-tool').length === 1 && !document.querySelector('.conv-empty'));
     const focus = await page.evaluate(() => {
       const title = document.querySelector('.conv-tool h2');
       const stage = document.querySelector('.conv-stage');
-      return { title: document.activeElement === title && title?.getAttribute('tabindex') === '-1', region: stage.getAttribute('role') === 'region' && !!stage.getAttribute('aria-labelledby'), scroll: scrollY };
+      return { title: document.activeElement === title && title?.getAttribute('tabindex') === '-1', region: stage.getAttribute('role') === 'region' && !!stage.getAttribute('aria-labelledby'), scroll: scrollY, titleTop: document.querySelector('.conv-tool h2')?.getBoundingClientRect().top ?? -1 };
     });
     check(focus.title, '도구 제목 초점', id);
     check(focus.region, '도구 영역 이름', id);
-    check(Math.abs(scroll - focus.scroll) <= 1, '선택 시 스크롤 유지', { id, before: scroll, after: focus.scroll });
+    if (stageInView) check(Math.abs(scroll - focus.scroll) <= 1, '선택 시 스크롤 유지', { id, before: scroll, after: focus.scroll });
+    else await page.waitForFunction(() => { const top = document.querySelector('.conv-tool h2')?.getBoundingClientRect().top ?? -1; return top >= 0 && top < innerHeight; }, null, { timeout: 3000 })
+      .catch(() => check(false, '선택 후 도구 제목이 화면 밖', { id, titleTop: focus.titleTop }));
     const result = await page.evaluate(inspect);
     contrasts = result.muted;
     for (const [field, kind] of [['unnamed', '조작 요소 이름'], ['images', '이미지 대체 텍스트'], ['jumps', '제목 단계'], ['lowContrast', '글자 대비']]) {
