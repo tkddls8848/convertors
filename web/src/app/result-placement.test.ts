@@ -18,7 +18,7 @@ async function build(id: string): Promise<HTMLElement> {
 const PLACED = [
   'document', 'spreadsheet', 'hwpx-markdown', 'text-hwpx', 'encoding', 'redact', 'text-diff', 'bizno', 'vat',
   'hash', 'qr', 'rename', 'zip', 'image-convert', 'images-pdf', 'sheet-merge',
-  'pdf-meta', 'pdf-nup', 'pdf-sign', 'pdf-stamp', 'pdf-edit',
+  'pdf-meta', 'pdf-nup', 'pdf-sign', 'pdf-stamp', 'pdf-edit', 'pdf',
 ];
 
 /** 내려받기 링크 묶음 대신 결과 상자 안의 단추로 내려받는 도구. */
@@ -44,5 +44,13 @@ describe('결과 칸', () => {
     const note = tool.querySelector('.edit-form-note[role="status"]');
     expect(note).not.toBeNull();
     expect(note!.closest('.conv-results')).toBeNull();
+  });
+
+  it('PDF 편집기: 결과 칸은 오른쪽 칸 맨 위, 쪽 목록은 왼쪽 칸', async () => {
+    const tool = await build('pdf');
+    expect(tool.querySelector('.pdf-right')!.firstElementChild!.matches('.conv-results')).toBe(true);
+    expect(tool.querySelector('.pdf-left .pdf-pages')).not.toBeNull();
+    expect(tool.querySelector('.pdf-left #conv-pdf-file')).not.toBeNull();
+    expect(tool.querySelector('.pdf-right .pdf-outputs')).not.toBeNull();
   });
 });

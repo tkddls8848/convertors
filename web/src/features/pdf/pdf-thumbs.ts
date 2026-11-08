@@ -87,7 +87,7 @@ export function createThumbnailer(options: { root: HTMLElement; draw: DrawPage; 
     }
   };
 
-  const observer = new IntersectionObserver(entries => {
+  const seen = (entries: Array<{ target: Element; isIntersecting: boolean }>): void => {
     for (const entry of entries) {
       const slot = entry.target as HTMLElement;
       if (!wanted.has(slot)) continue;
@@ -96,7 +96,11 @@ export function createThumbnailer(options: { root: HTMLElement; draw: DrawPage; 
       else if (at >= 0) queue.splice(at, 1);
     }
     pump();
-  }, { root, rootMargin: '200px 0px' });
+  };
+  // IntersectionObserver 가 없는 곳(오래된 브라우저, 시험용 DOM)에서는 모든 칸이 보인다고 보고 차례로 그린다.
+  const observer: Pick<IntersectionObserver, 'observe' | 'unobserve' | 'disconnect'> = typeof IntersectionObserver === 'function'
+    ? new IntersectionObserver(seen, { root, rootMargin: '200px 0px' })
+    : { observe: target => seen([{ target, isIntersecting: true }]), unobserve: () => {}, disconnect: () => {} };
 
   return {
     show(slot, source, index) {
