@@ -26,6 +26,7 @@ export function biznoTool(): HTMLElement {
       <textarea id="bizno-input" class="conv-input conv-wide" rows="6" spellcheck="false"
         placeholder="한 줄에 하나, 또는 쉼표·공백으로 나누어&#10;124-81-00998&#10;130111-0006246"></textarea>
     </div>
+    <div class="conv-results">
     <p class="conv-status" role="status" aria-live="polite"></p>
     <div class="conv-actions">
       <button type="button" id="bizno-copy" disabled>맞는 번호만 복사</button>
@@ -37,6 +38,7 @@ export function biznoTool(): HTMLElement {
       </table>
     </div>
     <div class="conv-outputs conv-actions" id="bizno-outputs" aria-label="내려받기"></div>
+    </div>
   `);
 
   const input = need<HTMLTextAreaElement>(tool, '#bizno-input');

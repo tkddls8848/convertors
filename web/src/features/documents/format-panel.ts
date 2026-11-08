@@ -1,4 +1,5 @@
 import { reason } from '../../shared/errors';
+import { revealResult } from '../../shared/kit';
 import { DOCUMENT_INPUTS, DOCUMENT_OUTPUTS, SHEET_INPUTS, SHEET_OUTPUTS, MAX_INPUT, CONTENT_NOTE, type ConversionFile } from './format-catalog';
 
 // Keep SheetJS out of the UI bundle; the dedicated worker owns that engine.
@@ -14,8 +15,8 @@ function formatTool(spreadsheet: boolean): HTMLElement {
     <p class="conv-note">입력: ${inputs.map(s => s.toUpperCase()).join(' · ')}<br>파일당 16MB, 결과 32MB까지. ${spreadsheet ? '최대 100시트·50만 셀. CSV·TSV는 UTF-8. DIF·SYLK 출력은 영문·숫자(ASCII)만 지원합니다.' : '최대 200만 자. PDF는 200쪽까지 텍스트를 추출하며 OCR은 지원하지 않습니다. DOC·HWP 바이너리와 원본 배치를 보존하는 Office → PDF 변환은 지원하지 않습니다.'}</p>
     <label class="conv-drop" for="conv-${id}-file"><input id="conv-${id}-file" type="file" accept="${inputs.map(s => '.' + s).join(',')}"/><span>파일을 고르거나 여기에 끌어다 놓으세요</span></label>
     <p class="format-source"></p>
-    <div class="conv-actions"><label>저장 형식 <select class="format-target">${outputs.map(s => `<option value="${s}">${s.toUpperCase()}</option>`).join('')}</select></label><button class="conv-download format-run" disabled>변환하기</button>${spreadsheet ? '<button class="format-cancel" disabled>취소</button>' : ''}</div>
-    <p class="conv-status" role="status" aria-live="polite"></p><ul class="format-notes"></ul><div class="format-outputs conv-actions" aria-label="변환 결과"></div>`;
+    <div class="conv-results"><p class="conv-status" role="status" aria-live="polite"></p><ul class="format-notes"></ul><div class="format-outputs conv-actions" aria-label="변환 결과"></div></div>
+    <div class="conv-actions"><label>저장 형식 <select class="format-target">${outputs.map(s => `<option value="${s}">${s.toUpperCase()}</option>`).join('')}</select></label><button class="conv-download format-run" disabled>변환하기</button>${spreadsheet ? '<button class="format-cancel" disabled>취소</button>' : ''}</div>`;
   const input = tool.querySelector<HTMLInputElement>('input')!, target = tool.querySelector<HTMLSelectElement>('select')!;
   const run = tool.querySelector<HTMLButtonElement>('.format-run')!, cancel = tool.querySelector<HTMLButtonElement>('.format-cancel');
   const status = tool.querySelector<HTMLElement>('.conv-status')!, links = tool.querySelector<HTMLElement>('.format-outputs')!, notes = tool.querySelector<HTMLElement>('.format-notes')!;
@@ -67,8 +68,8 @@ function formatTool(spreadsheet: boolean): HTMLElement {
         const { zipSync } = await import('fflate');
         addLink({ name: `${file.name.replace(/\.[^.]+$/, '')}-${target.value}.zip`, bytes: zipSync(Object.fromEntries(result.files.map(f => [f.name, f.bytes]))), mime: 'application/zip' });
       }
-      result.files.forEach(addLink); status.textContent = `${result.files.length}개 파일을 만들었습니다. 내용을 확인한 뒤 사용해 주세요.`; status.dataset['tone'] = 'ok';
-    } catch (error) { clear(); status.textContent = reason(error); status.dataset['tone'] = 'error'; }
+      result.files.forEach(addLink); status.textContent = `${result.files.length}개 파일을 만들었습니다. 내용을 확인한 뒤 사용해 주세요.`; status.dataset['tone'] = 'ok'; revealResult(status);
+    } catch (error) { clear(); status.textContent = reason(error); status.dataset['tone'] = 'error'; revealResult(status); }
     finally { busy = false; run.disabled = !file; input.disabled = false; target.disabled = false; }
   })(); });
   return tool;

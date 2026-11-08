@@ -35,6 +35,11 @@ export function textDiffTool(): HTMLElement {
       <strong>줄바꿈 방식(CRLF·LF)과 마지막 줄바꿈의 유무는 비교하지 않습니다.</strong>
       줄이 옮겨 간 것은 "삭제 + 추가" 로 보이고, 워드·HWP·PDF 같은 문서 파일은 비교하지 않습니다(텍스트로 저장해 넣으세요).</p>
     ${sideHtml}
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <div class="diff-view" hidden><table><tbody></tbody></table></div>
+      <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
     <fieldset>
       <legend>무시할 차이</legend>
       <label><input type="checkbox" id="text-diff-space" /> 공백 개수·앞뒤 공백</label>
@@ -45,9 +50,6 @@ export function textDiffTool(): HTMLElement {
       <button type="button" class="conv-download" data-action="compare">비교하기</button>
       <button type="button" data-action="swap">양쪽 바꾸기</button>
     </div>
-    <p class="conv-status" role="status" aria-live="polite"></p>
-    <div class="diff-view" hidden><table><tbody></tbody></table></div>
-    <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
   `);
 
   const say = statusLine(need(tool, '.conv-status'));

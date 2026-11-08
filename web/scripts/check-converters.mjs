@@ -22,6 +22,9 @@ try {
   assert.equal(await page.locator('.conv-tool').count(), 0);
   /** 변환을 고른다. 고른 것 하나만 화면에 남는다. */
   const choose = async id => {
+    // 좁은 화면에서는 고른 뒤 목록이 접힌다. 접혀 있으면 펼친 뒤 고른다.
+    const toggle = page.locator('.conv-choices__toggle');
+    if (await toggle.isVisible() && await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
     await page.locator(`.conv-choice[data-choice="${id}"]`).click();
     await page.waitForFunction(() => document.querySelectorAll('.conv-tool').length === 1);
   };

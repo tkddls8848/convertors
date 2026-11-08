@@ -9,6 +9,7 @@
  * 사람이 HWPX 뼈대까지 내려받을 이유가 없다.
  */
 import { reason } from '../../shared/errors';
+import { revealResult } from '../../shared/kit';
 import { parseMarkdown } from './markdown';
 
 const MAX_CHARS = 2_000_000;
@@ -30,14 +31,16 @@ export function textHwpxTool(): HTMLElement {
     <label for="conv-text-input" class="conv-label">또는 직접 붙여 넣기</label>
     <textarea id="conv-text-input" class="conv-input" rows="10" spellcheck="false"
       placeholder="# 제목&#10;&#10;문단을 적습니다.&#10;&#10;| 품목 | 수량 |&#10;| --- | --- |&#10;| 볼펜 | 3 |"></textarea>
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <ul class="text-notes" aria-label="옮기지 못한 것"></ul>
+      <div class="text-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
     <div class="conv-actions">
       <label><input type="checkbox" class="text-markdown" checked> Markdown 으로 해석 (제목·목록·표)</label>
       <button type="button" class="conv-download" data-action="save">HWPX 로 저장</button>
     </div>
     <p class="conv-note">끄면 <strong>줄 하나가 문단 하나</strong>가 됩니다 — 로그·주소록처럼 줄이 곧 뜻인 글에 쓰세요.</p>
-    <p class="conv-status" role="status" aria-live="polite"></p>
-    <ul class="text-notes" aria-label="옮기지 못한 것"></ul>
-    <div class="text-outputs conv-actions" aria-label="저장 결과"></div>
   `;
 
   const file = tool.querySelector<HTMLInputElement>('#conv-text-file')!;
@@ -56,6 +59,7 @@ export function textHwpxTool(): HTMLElement {
   const message = (text: string, error = false): void => {
     status.textContent = text;
     status.dataset['tone'] = error ? 'error' : '';
+    if (error) revealResult(status);
   };
   const clearOutputs = (): void => {
     urls.forEach(url => URL.revokeObjectURL(url));
@@ -130,6 +134,7 @@ export function textHwpxTool(): HTMLElement {
           notes.append(item);
         }
         message('HWPX 를 만들었습니다. 한글에서 열어 확인해 주세요.');
+        revealResult(status);
       } catch (error) {
         clearOutputs();
         message(reason(error), true);

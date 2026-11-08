@@ -63,10 +63,12 @@ export function vatTool(): HTMLElement {
       <button type="button" id="vat-add">줄 더하기</button>
       <button type="button" id="vat-copy">표 복사 (엑셀에 붙여 넣기)</button>
     </div>
-    <ul class="conv-notes" id="vat-errors"></ul>
-    <p class="conv-status" id="vat-items-status" role="status" aria-live="polite"></p>
-    <div class="conv-result" id="vat-items-result"></div>
-    <div class="conv-outputs conv-actions" id="vat-outputs" aria-label="내려받기"></div>
+    <div class="conv-results">
+      <ul class="conv-notes" id="vat-errors"></ul>
+      <p class="conv-status" id="vat-items-status" role="status" aria-live="polite"></p>
+      <div class="conv-result" id="vat-items-result"></div>
+      <div class="conv-outputs conv-actions" id="vat-outputs" aria-label="내려받기"></div>
+    </div>
   `);
 
   const rate = need<HTMLInputElement>(tool, '#vat-rate');

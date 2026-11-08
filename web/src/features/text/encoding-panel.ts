@@ -9,6 +9,7 @@ import {
   type Newline, type WriteEncoding,
 } from './encoding';
 import { reason } from '../../shared/errors';
+import { revealResult } from '../../shared/kit';
 
 export function encodingTool(): HTMLElement {
   const tool = document.createElement('section');
@@ -21,7 +22,11 @@ export function encodingTool(): HTMLElement {
       <input id="conv-enc-file" type="file" accept=".csv,.txt,.tsv,.md,.json,.xml,.srt,text/*" />
       <span>CSV·텍스트 파일을 고르거나 여기에 끌어다 놓으세요</span>
     </label>
-    <p class="conv-status" role="status" aria-live="polite"></p>
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <pre class="conv-preview enc-preview"></pre>
+      <div class="enc-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
     <fieldset class="enc-controls" disabled>
       <legend>내보내기</legend>
       <p class="enc-detected"></p>
@@ -46,9 +51,7 @@ export function encodingTool(): HTMLElement {
       <div class="conv-actions">
         <button type="button" class="conv-download" data-action="save">변환해 내려받기</button>
       </div>
-      <pre class="conv-preview enc-preview"></pre>
     </fieldset>
-    <div class="enc-outputs conv-actions" aria-label="저장 결과"></div>
   `;
 
   const input = tool.querySelector<HTMLInputElement>('#conv-enc-file')!;
@@ -70,6 +73,7 @@ export function encodingTool(): HTMLElement {
   const message = (value: string, error = false): void => {
     status.textContent = value;
     status.dataset['tone'] = error ? 'error' : '';
+    if (error) revealResult(status);
   };
   const clearOutputs = (): void => {
     urls.forEach(url => URL.revokeObjectURL(url));
@@ -147,6 +151,7 @@ export function encodingTool(): HTMLElement {
       link.download = name.replace(/(\.[^.]+)?$/, match => `-${suffix}${match || '.txt'}`);
       link.textContent = `${link.download} 내려받기`;
       outputs.append(link);
+      revealResult(outputs);
       message(result.missing.length
         ? `변환했습니다. CP949 에 없는 글자 ${result.missing.length}종을 ? 로 바꿨습니다: ${result.missing.slice(0, 10).join(' ')}`
         : '변환했습니다. 아래 링크를 눌러 내려받으세요.', result.missing.length > 0);

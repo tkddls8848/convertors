@@ -1,4 +1,5 @@
 import { reason } from '../../shared/errors';
+import { revealResult } from '../../shared/kit';
 import { hwpxToMarkdown, type HwpxResult } from './hwpx';
 const MAX_BYTES = 64 * 1024 * 1024;
 
@@ -17,6 +18,7 @@ export function hwpxTool(): HTMLElement {
       <input id="conv-hwpx-file" type="file" accept=".hwpx,application/hwp+zip" />
       <span>HWPX 파일을 고르거나 여기에 끌어다 놓으세요</span>
     </label>
+    <div class="conv-results">
     <p class="conv-status" role="status" aria-live="polite"></p>
     <div class="conv-result" hidden>
       <div class="conv-stats"></div>
@@ -25,6 +27,7 @@ export function hwpxTool(): HTMLElement {
         <span class="conv-filename"></span>
       </div>
       <pre class="conv-preview"></pre>
+    </div>
     </div>
   `;
 
@@ -44,6 +47,7 @@ export function hwpxTool(): HTMLElement {
     status.textContent = message;
     status.dataset['tone'] = 'error';
     result.hidden = true;
+    revealResult(status);
   };
 
   const run = async (file: File): Promise<void> => {
@@ -72,6 +76,7 @@ export function hwpxTool(): HTMLElement {
       result.hidden = false;
       status.textContent = `${file.name} 변환 완료`;
       status.dataset['tone'] = 'ok';
+      revealResult(status);
     } catch (error) {
       fail(`읽지 못했습니다: ${reason(error)}`);
     }

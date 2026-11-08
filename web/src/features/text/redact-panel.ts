@@ -64,6 +64,16 @@ export function redactTool(): HTMLElement {
     </div>
     <label class="conv-label" for="redact-input">붙여 넣은 글</label>
     <textarea id="redact-input" class="conv-input" rows="10" spellcheck="false" placeholder="가릴 글을 붙여 넣으세요"></textarea>
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <ul class="conv-notes redact-counts"></ul>
+      <pre class="conv-preview redact-preview" hidden></pre>
+      <div class="conv-table-wrap" hidden><table class="conv-table redact-table">
+        <thead><tr><th>파일</th><th class="num">줄</th><th>종류</th><th>가린 모양</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
     <div class="conv-actions">
       <button type="button" class="conv-download" data-action="text">붙여 넣은 글 가리기</button>
     </div>
@@ -71,14 +81,6 @@ export function redactTool(): HTMLElement {
       <input id="redact-file" type="file" multiple accept=".txt,.csv,.tsv,.md,.json,.log,.xml,.srt,.ini,.yml,.yaml,text/*" />
       <span>또는 텍스트 파일을 고르거나 끌어다 놓으세요 (여러 개 가능, 합계 64MB)</span>
     </label>
-    <p class="conv-status" role="status" aria-live="polite"></p>
-    <ul class="conv-notes redact-counts"></ul>
-    <pre class="conv-preview redact-preview" hidden></pre>
-    <div class="conv-table-wrap" hidden><table class="conv-table redact-table">
-      <thead><tr><th>파일</th><th class="num">줄</th><th>종류</th><th>가린 모양</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-    <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
   `);
 
   const say = statusLine(need(tool, '.conv-status'));
