@@ -32,7 +32,7 @@
 
 검사 스크립트:
 
-- `web/scripts/check-converters.mjs`: 실제 Chromium 으로 공개 화면을 조작한다(HWPX 이미지·텍스트 저장, 표, 혼합 쪽 크기, 스캔 쪽 처리, 선택·회전, 취소, PDF → 이미지, 이미지 → PDF, 텍스트 → HWPX, 인코딩, ZIP, 모바일 폭).
+- `web/scripts/check-converters.mjs`: 실제 Chromium 으로 공개 화면을 조작한다(HWPX 이미지·텍스트 저장, 표, 혼합 쪽 크기, 스캔 쪽 처리, 선택·회전, 취소, PDF → 이미지, 이미지 → PDF, 텍스트 → HWPX, 인코딩, ZIP, 모바일 폭, 화면 배치 — 1366×768 에서 고른 도구의 파일 칸·저장 링크가 첫 화면에 보이는지, 쪽 썸네일과 회전 표시, 1,000쪽 격자, 좁은 화면 목록 접기).
 - `web/scripts/check-hwpx.mjs`: 한 쪽짜리 HWPX 를 만들어 패키지 구조·쪽 크기·PNG 픽셀을 확인한다.
 - `desktop/verify-hwpx.ps1`: 한글 자동화로 HWPX 를 열어 본다.
 

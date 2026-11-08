@@ -28,6 +28,10 @@ PDF 글자 편집의 진입점은 `features/pdf/pdf-edit-panel.ts`다.
 그 일꾼은 `pdf-redact.worker.ts`, 화면 쪽 호출은 `pdf-redact.ts`다. 테스트는
 `pdf-redact-node.ts` 로 같은 wasm 을 Node 에서 띄운다.
 
+PDF 편집기의 쪽 썸네일은 `features/pdf/pdf-thumbs.ts`(화면에 든 쪽만 두 장씩 그림)다.
+도구의 실행 결과는 `.conv-results` 한 상자에 모으고, 화면 밖이면 `shared/kit.ts` 의
+`revealResult` 가 그 자리로 옮긴다. 규칙 검사는 `app/result-placement.test.ts` 에 있다.
+
 저장소 루트에서:
 
 ```sh

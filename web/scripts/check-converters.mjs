@@ -14,7 +14,13 @@ await mkdir(out, { recursive: true });
 const browser = await browserType.launch({ headless: true });
 try {
   const page = await browser.newPage();
+  // 흔한 노트북 화면. 도구를 고르면 파일 칸이, 저장하면 링크가 스크롤 없이 보여야 한다.
+  await page.setViewportSize({ width: 1366, height: 768 });
   const errors = [];
+  const inView = async locator => {
+    const box = await locator.boundingBox();
+    return box !== null && box.y >= 0 && box.y + box.height <= 768;
+  };
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`${base}/#converters`);
   // 이제 여섯이 한꺼번에 서 있지 않다. 고르기 전에는 도구가 하나도 없어야 한다.
@@ -30,6 +36,9 @@ try {
   };
   await choose('pdf');
   await page.getByRole('heading', { name: 'PDF 편집기', exact: true }).waitFor();
+  assert.equal(await page.locator('.conv-choices__toggle').isVisible(), false, '넓은 화면에서 목록 접기 단추가 보입니다.');
+  assert.ok(await inView(page.locator('.conv-pdf .conv-drop')), '도구를 고른 뒤 파일 칸이 첫 화면에 없습니다.');
+  assert.equal((await page.locator('.conv-pdf .conv-results').boundingBox())?.height ?? 0, 0, '실행 전에 빈 결과 칸이 자리를 차지합니다.');
   const doc = await PDFDocument.create();
   const first = doc.addPage([400, 500]);
   first.drawText('Title < & >', { x: 30, y: 450, size: 12 });
@@ -38,6 +47,11 @@ try {
   doc.addPage([300, 400]).drawRectangle({ x: 0, y: 0, width: 300, height: 400, color: rgb(0.2,0.4,0.9) });
   await page.locator('#conv-pdf-file').setInputFiles({ name: 'synthetic.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await doc.save()) });
   await page.getByText('1개 파일에서 3쪽을 추가했습니다.', { exact: true }).waitFor();
+  await page.waitForFunction(() => document.querySelectorAll('.pdf-pages img.pdf-thumb').length === 3, null, { timeout: 15000 });
+  await page.getByRole('button', { name: '전체 병합·저장', exact: true }).click();
+  await page.locator('.pdf-outputs a').first().waitFor();
+  await page.waitForTimeout(700); // 결과 칸으로 부드럽게 옮겨 가는 동안
+  assert.ok(await inView(page.locator('.pdf-outputs a').first()), '저장 링크가 화면 밖에 있습니다.');
   const result = page.locator('.pdf-outputs a');
   // 링크를 눌러 실제로 내려받고, 같은 바이트를 검사용으로도 가져온다.
   const grab = async (link, name) => {
@@ -71,6 +85,8 @@ try {
 
   await page.locator('.pdf-pages input').nth(1).check();
   await page.getByRole('button', { name: '선택 쪽 ↻ 90°', exact: true }).click();
+  assert.match(await page.locator('.pdf-pages li').nth(1).locator('.pdf-thumb-slot').getAttribute('style') ?? '', /rotate\(90deg\)/);
+  assert.equal(await page.locator('.pdf-pages li').nth(1).locator('img.pdf-thumb').count(), 1, '회전 뒤 썸네일이 사라졌습니다.');
   await page.getByRole('button', { name: 'HWPX 이미지로 저장', exact: true }).click();
   const selected = await save('selected-image.hwpx');
   assert.match(strFromU8(selected['Contents/section0.xml']), /width="30000" height="50000"/);
@@ -321,9 +337,33 @@ try {
   assert.equal(await page.locator('.conv-choice[data-choice="pdf"]').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('.conv-choice[data-choice="zip"]').getAttribute('aria-pressed'), 'false');
 
+  // 1,000쪽 — 화면에 든 쪽만 그린다. 다 그리려 들면 멈춘다.
+  await page.getByRole('button', { name: '초기화', exact: true }).click();
+  const big = await PDFDocument.create();
+  for (let i = 0; i < 1000; i++) big.addPage([300, 400]).drawText(`${i + 1}`, { x: 20, y: 360, size: 24 });
+  const started = Date.now();
+  await page.locator('#conv-pdf-file').setInputFiles({ name: 'big.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await big.save()) });
+  await page.locator('.pdf-pages img.pdf-thumb').first().waitFor({ timeout: 10000 });
+  assert.ok(Date.now() - started < 10000, '1,000쪽에서 첫 썸네일이 늦습니다.');
+  assert.equal(await page.locator('.pdf-pages li').count(), 1000);
+  assert.ok(await page.locator('.pdf-pages img.pdf-thumb').count() < 100, '보이지 않는 쪽까지 그렸습니다.');
+  await page.locator('.pdf-pages').evaluate(list => { list.scrollTop = list.scrollHeight; });
+  await page.locator('.pdf-pages li').last().locator('img.pdf-thumb').waitFor({ timeout: 10000 });
+  await page.getByRole('button', { name: '초기화', exact: true }).click();
+
   await page.setViewportSize({ width: 375, height: 812 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  // 좁은 화면 — 골라 둔 상태라 목록은 한 줄로 접혀 있다. 펼쳐 다른 도구를 고르면 다시 접히고 도구가 화면에 온다.
+  const toggle = page.locator('.conv-choices__toggle');
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+  await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+  await page.locator('.conv-choice[data-choice="zip"]').click();
+  await page.getByRole('heading', { name: 'ZIP 묶기·풀기', exact: true }).waitFor();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+  await page.waitForTimeout(700);
+  assert.ok(await page.locator('.conv-stage h2').evaluate(h => { const r = h.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }), '좁은 화면에서 고른 도구 제목이 화면 밖입니다.');
   await page.screenshot({ path: fileURLToPath(new URL('converters-mobile.png', out)), fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: chooser (one tool at a time, state kept), PDF text edit (true removal via PDFium, Korean font embed + extract-back, source-font reuse after removal + missing-glyph refusal, erase keeps background, add at clicked spot), HWPX image/text exports, tables, mixed page sizes, scanned-page error/image/skip, selection/rotation, cancellation, PDF→image (zip/single), image→PDF (native/A4), text→HWPX, encoding detect/convert/refuse, ZIP pack/unpack, mobile layout.');
+  console.log('PASS: chooser (one tool at a time, state kept), PDF text edit (true removal via PDFium, Korean font embed + extract-back, source-font reuse after removal + missing-glyph refusal, erase keeps background, add at clicked spot), HWPX image/text exports, tables, mixed page sizes, scanned-page error/image/skip, selection/rotation, cancellation, PDF→image (zip/single), image→PDF (native/A4), text→HWPX, encoding detect/convert/refuse, ZIP pack/unpack, mobile layout, layout (sidebar, results in view, thumbnails + rotation, 1,000-page grid, collapsed chooser on mobile).');
 } finally { await browser.close(); }
