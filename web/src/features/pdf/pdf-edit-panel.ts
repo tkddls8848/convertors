@@ -21,6 +21,7 @@ import { createFontMeasurer } from './pdf-edit-measure';
 import { PDFDocument } from 'pdf-lib';
 
 import { reason } from '../../shared/errors';
+import { revealResult } from '../../shared/kit';
 import { loadCatalog, loadFont, mb, STANDARD_FONTS, type CatalogFont } from './fonts';
 import {
   applyTextEdits, EDIT_LIMITS, shrinkToFit, sourceFontId, sourceFontResource,
@@ -106,6 +107,14 @@ export function pdfEditTool(): HTMLElement {
   const say = (message: string, tone: '' | 'ok' | 'error' = ''): void => {
     status.textContent = message;
     status.dataset['tone'] = tone;
+    if (tone === 'error') revealResult(status);
+  };
+  // 편집 양식에서 생긴 일(빈 글자, 글꼴에 없는 글자, 고치기 실패)은 양식 안에서 알린다.
+  // 맨 위 결과 칸에 적으면 양식을 보던 사람이 놓친다.
+  const formNote = $<HTMLParagraphElement>('.edit-form-note');
+  const formSay = (message: string, tone: '' | 'error' = ''): void => {
+    formNote.textContent = message;
+    formNote.dataset['tone'] = tone;
   };
 
   const clearOutputs = (): void => {
@@ -473,7 +482,8 @@ export function pdfEditTool(): HTMLElement {
     const target = picked;
     const place = spot;
     if (!target && !place) return;
-    if (!text.value.length) { say('새 글자를 입력하세요.', 'error'); return; }
+    formSay('');
+    if (!text.value.length) { formSay('새 글자를 입력하세요.', 'error'); return; }
     const source = chosenSourceFont();
     // 원본 글꼴에 없는 글자는 그려 봐야 빈칸이다. 그리기 전에 멈추고, 닮은 글꼴을
     // 골라 둔 채로 알린다 — 다시 누르면 그 글꼴로 고쳐진다.
@@ -482,7 +492,7 @@ export function pdfEditTool(): HTMLElement {
       const fallback = fallbackFor(source);
       if (fallback) fontSelect.value = fallback.id;
       updateFit();
-      say(`원본 글꼴에 없는 글자가 있습니다 — ${missing.join(' ')}.`
+      formSay(`원본 글꼴에 없는 글자가 있습니다 — ${missing.join(' ')}.`
         + (fallback ? ` 닮은 글꼴 ‘${fallback.label}’ 로 바꿔 두었습니다. 다시 누르면 그 글꼴로 고칩니다.` : ' 다른 글꼴을 고르세요.'), 'error');
       return;
     }
@@ -512,7 +522,7 @@ export function pdfEditTool(): HTMLElement {
         original: target?.text ?? '',
       }, target ? '고쳤습니다. 아래 미리보기가 저장될 모습입니다.' : '넣었습니다. 아래 미리보기가 저장될 모습입니다.');
     } catch (error) {
-      say(`${target ? '고치지' : '넣지'} 못했습니다: ${reason(error)}`, 'error');
+      formSay(`${target ? '고치지' : '넣지'} 못했습니다: ${reason(error)}`, 'error');
     }
   }
 
@@ -529,7 +539,7 @@ export function pdfEditTool(): HTMLElement {
         original: target.text,
       }, '지웠습니다. 원래 글자는 파일에서 빠졌습니다.');
     } catch (error) {
-      say(`지우지 못했습니다: ${reason(error)}`, 'error');
+      formSay(`지우지 못했습니다: ${reason(error)}`, 'error');
     }
   }
 
@@ -624,6 +634,7 @@ export function pdfEditTool(): HTMLElement {
       link.textContent = `${link.download} (${mb(result.bytes.length)})`;
       outputs.append(link);
       say(`${edits.length}자리를 고쳤습니다. 아래 링크로 내려받으세요.`, 'ok');
+      revealResult(outputs);
     } catch (error) {
       say(`저장하지 못했습니다: ${reason(error)}`, 'error');
     }

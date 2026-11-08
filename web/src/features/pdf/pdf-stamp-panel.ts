@@ -36,7 +36,10 @@ export function pdfStampTool(): HTMLElement {
       <input id="stamp-file" type="file" accept=".pdf,application/pdf" />
       <span>PDF 파일을 고르거나 여기에 끌어다 놓으세요</span>
     </label>
-    <p class="conv-status" role="status" aria-live="polite"></p>
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
 
     <fieldset class="stamp-controls" disabled>
       <legend>워터마크</legend>
@@ -112,7 +115,6 @@ export function pdfStampTool(): HTMLElement {
         <button type="button" class="conv-download" data-action="save">찍어서 저장</button>
       </div>
     </fieldset>
-    <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
   `);
 
   const input = need<HTMLInputElement>(tool, '#stamp-file');

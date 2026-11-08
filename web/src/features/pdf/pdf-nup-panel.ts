@@ -32,7 +32,10 @@ export function pdfNupTool(): HTMLElement {
       <input id="nup-file" type="file" accept=".pdf,application/pdf" />
       <span>PDF 파일을 고르거나 여기에 끌어다 놓으세요</span>
     </label>
-    <p class="conv-status" role="status" aria-live="polite"></p>
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
 
     <fieldset class="nup-controls" disabled>
       <legend>모아찍기</legend>
@@ -79,7 +82,6 @@ export function pdfNupTool(): HTMLElement {
         <button type="button" class="conv-download" data-action="remove" disabled>고른 쪽 빼고 저장</button>
       </div>
     </fieldset>
-    <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
   `);
 
   const input = need<HTMLInputElement>(tool, '#nup-file');

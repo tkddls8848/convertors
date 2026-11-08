@@ -15,7 +15,11 @@ export function pdfEditMarkup(): string {
       <input id="conv-edit-file" type="file" accept=".pdf,application/pdf" />
       <span>PDF 파일을 고르거나 여기에 끌어다 놓으세요</span>
     </label>
-    <p class="conv-status" role="status" aria-live="polite"></p>
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <ul class="edit-warnings conv-note" aria-label="저장 확인 사항"></ul>
+      <div class="edit-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
 
     <fieldset class="edit-controls" disabled>
       <legend>쪽 보기</legend>
@@ -51,6 +55,7 @@ export function pdfEditMarkup(): string {
           <label>세로 옮김 <input class="edit-dy" type="number" step="0.5" value="0" /></label>
         </div>
         <p class="edit-fit conv-note"></p>
+        <p class="conv-note edit-form-note" role="status" aria-live="polite"></p>
         <div class="conv-actions">
           <button type="button" class="conv-download edit-apply" data-action="apply">이 자리 고치기</button>
           <button type="button" class="edit-erase" data-action="erase">이 자리 지우기</button>
@@ -71,7 +76,5 @@ export function pdfEditMarkup(): string {
       <label>내 글꼴 불러오기 <input class="edit-font-file" type="file" accept=".ttf,.otf,font/ttf,font/otf" /></label>
     </div>
     <p class="conv-note">맑은 고딕·함초롬돋움처럼 저희가 담아 드릴 수 없는 글꼴은 그 글꼴 파일(<code>.ttf</code>·<code>.otf</code>)을 직접 올려 쓰세요. 올린 글꼴도 이 컴퓨터를 벗어나지 않습니다.</p>
-    <ul class="edit-warnings conv-note" aria-label="저장 확인 사항"></ul>
-    <div class="edit-outputs conv-actions" aria-label="저장 결과"></div>
   `;
 }

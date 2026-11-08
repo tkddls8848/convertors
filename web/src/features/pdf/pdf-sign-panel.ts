@@ -51,7 +51,10 @@ export function pdfSignTool(): HTMLElement {
       <span>서명·도장 그림을 고르거나 여기에 끌어다 놓으세요</span>
     </label>
     <label><input type="checkbox" id="sign-white" /> 흰 바탕 투명하게 (종이에 찍어 스캔한 도장·서명)</label>
-    <p class="conv-status" role="status" aria-live="polite"></p>
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
 
     <fieldset class="sign-controls" disabled>
       <legend>자리 고르기</legend>
@@ -84,7 +87,6 @@ export function pdfSignTool(): HTMLElement {
         <button type="button" data-action="reset">자리 모두 지우기</button>
       </div>
     </fieldset>
-    <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
   `);
 
   const pdfInput = need<HTMLInputElement>(tool, '#sign-file');

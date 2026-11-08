@@ -18,6 +18,7 @@ async function build(id: string): Promise<HTMLElement> {
 const PLACED = [
   'document', 'spreadsheet', 'hwpx-markdown', 'text-hwpx', 'encoding', 'redact', 'text-diff', 'bizno', 'vat',
   'hash', 'qr', 'rename', 'zip', 'image-convert', 'images-pdf', 'sheet-merge',
+  'pdf-meta', 'pdf-nup', 'pdf-sign', 'pdf-stamp', 'pdf-edit',
 ];
 
 /** 내려받기 링크 묶음 대신 결과 상자 안의 단추로 내려받는 도구. */
@@ -36,5 +37,12 @@ describe('결과 칸', () => {
     const firstBox = tool.querySelector('.conv-results')!;
     const firstRun = tool.querySelector('button.conv-download');
     if (firstRun) expect(firstBox.compareDocumentPosition(firstRun) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('PDF 글자 고치기: 편집 양식의 입력 확인은 결과 칸이 아니라 양식 안 알림 줄에 나온다', async () => {
+    const tool = await build('pdf-edit');
+    const note = tool.querySelector('.edit-form-note[role="status"]');
+    expect(note).not.toBeNull();
+    expect(note!.closest('.conv-results')).toBeNull();
   });
 });
