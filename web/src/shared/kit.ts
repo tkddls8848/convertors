@@ -37,16 +37,21 @@ export function statusLine(element: HTMLElement): Say {
   };
 }
 
+/** 결과 칸 윗부분이 화면 아래 끝에서 이만큼(px)은 올라와 있어야 "보인다"고 본다. */
+const REVEAL_MARGIN = 64;
+
 /**
- * 실행 결과가 나왔을 때 결과 칸(`.conv-results`)이 화면 밖이면 보이게 스크롤한다.
- * 초점은 옮기지 않는다 — 상태 줄의 `aria-live` 가 이미 알린다.
+ * 실행 결과가 나왔을 때 결과 칸(`.conv-results`)의 윗부분이 화면 밖이면 그 칸을 화면
+ * 위로 끌어온다. 윗부분만 본다 — 긴 표·미리보기 전체를 담으라 하면 QR 처럼 입력하는
+ * 대로 링크가 바뀌는 도구에서 글자마다 화면이 튄다. 초점은 옮기지 않는다 — 상태 줄의
+ * `aria-live` 가 이미 알린다.
  */
 export function revealResult(element: HTMLElement): void {
   const target = element.closest<HTMLElement>('.conv-results') ?? element;
-  const { top, bottom } = target.getBoundingClientRect();
-  if (top >= 0 && bottom <= window.innerHeight) return;
+  const { top } = target.getBoundingClientRect();
+  if (top >= 0 && top <= window.innerHeight - REVEAL_MARGIN) return;
   const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  target.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+  target.scrollIntoView?.({ block: 'start', behavior: still ? 'auto' : 'smooth' });
 }
 
 /** 내려받기 링크 묶음. `clear` 가 앞서 만든 URL 을 모두 거둔다. */

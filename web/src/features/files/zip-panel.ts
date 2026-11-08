@@ -10,6 +10,7 @@
 import { zipSync, type Zippable } from 'fflate';
 
 import { reason } from '../../shared/errors';
+import { revealResult } from '../../shared/kit';
 import { readZip } from '../../shared/zip';
 
 const MAX_TOTAL = 64 * 1024 * 1024;
@@ -31,21 +32,25 @@ export function zipTool(): HTMLElement {
       <input id="conv-zip-pack" type="file" multiple />
       <span>묶을 파일을 고르거나 여기에 끌어다 놓으세요 (여러 개 가능)</span>
     </label>
-    <p class="zip-pack-status conv-status" role="status" aria-live="polite"></p>
+    <div class="conv-results">
+      <p class="zip-pack-status conv-status" role="status" aria-live="polite"></p>
+      <div class="zip-pack-outputs conv-actions" aria-label="묶기 결과"></div>
+    </div>
     <ul class="zip-pack-list" aria-label="묶을 파일"></ul>
     <div class="conv-actions">
       <button type="button" class="conv-download zip-pack-save" disabled>ZIP 으로 묶기</button>
       <button type="button" class="zip-pack-reset">초기화</button>
     </div>
-    <div class="zip-pack-outputs conv-actions" aria-label="묶기 결과"></div>
 
     <h3>풀기</h3>
     <label class="conv-drop" for="conv-zip-open">
       <input id="conv-zip-open" type="file" accept=".zip,application/zip" />
       <span>ZIP 파일을 고르거나 여기에 끌어다 놓으세요</span>
     </label>
-    <p class="zip-open-status conv-status" role="status" aria-live="polite"></p>
-    <ul class="zip-open-list" aria-label="ZIP 안의 파일"></ul>
+    <div class="conv-results">
+      <p class="zip-open-status conv-status" role="status" aria-live="polite"></p>
+      <ul class="zip-open-list" aria-label="ZIP 안의 파일"></ul>
+    </div>
   `;
 
   packing(tool);
@@ -67,6 +72,7 @@ function packing(tool: HTMLElement): void {
   const message = (text: string, error = false): void => {
     status.textContent = text;
     status.dataset['tone'] = error ? 'error' : '';
+    if (error) revealResult(status);
   };
   const clearOutputs = (): void => {
     urls.forEach(url => URL.revokeObjectURL(url));
@@ -131,6 +137,7 @@ function packing(tool: HTMLElement): void {
         link.textContent = `archive.zip 내려받기 (${files.length}개 · ${size(bytes.length)})`;
         outputs.append(link);
         message('묶었습니다. 아래 링크를 눌러 내려받으세요.');
+        revealResult(outputs);
       } catch (error) {
         clearOutputs();
         message(reason(error), true);
@@ -150,6 +157,7 @@ function unpacking(tool: HTMLElement): void {
   const message = (text: string, error = false): void => {
     status.textContent = text;
     status.dataset['tone'] = error ? 'error' : '';
+    if (error) revealResult(status);
   };
 
   const open = (file: File): void => {
@@ -176,6 +184,7 @@ function unpacking(tool: HTMLElement): void {
           list.append(row);
         }
         const count = urls.length;
+        revealResult(status);
         message(count
           ? `${count}개 파일을 풀었습니다${folders ? ` (폴더 ${folders}개)` : ''}. 이름을 눌러 하나씩 내려받으세요.`
           : 'ZIP 안에 내려받을 파일이 없습니다.', !count);

@@ -15,7 +15,10 @@ async function build(id: string): Promise<HTMLElement> {
   return tool;
 }
 
-const PLACED = ['document', 'spreadsheet', 'hwpx-markdown', 'text-hwpx', 'encoding', 'redact', 'text-diff', 'bizno', 'vat'];
+const PLACED = [
+  'document', 'spreadsheet', 'hwpx-markdown', 'text-hwpx', 'encoding', 'redact', 'text-diff', 'bizno', 'vat',
+  'hash', 'qr', 'rename', 'zip', 'image-convert', 'images-pdf', 'sheet-merge',
+];
 
 /** 내려받기 링크 묶음 대신 결과 상자 안의 단추로 내려받는 도구. */
 const RESULT_SELECTOR: Record<string, string> = { 'hwpx-markdown': '.conv-result' };

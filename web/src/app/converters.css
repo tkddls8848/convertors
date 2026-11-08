@@ -252,6 +252,7 @@
 /* 결과 칸 — 실행 하나의 상태·경고·미리보기·내려받기를 한 상자에 모은다.
    아무것도 없으면 자리도 테두리도 없다. 빈 상자는 고장으로 보인다. */
 .conv-results {
+  scroll-margin-top: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;

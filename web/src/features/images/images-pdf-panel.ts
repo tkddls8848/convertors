@@ -6,6 +6,7 @@
  * 않는다. 바꿀 수 없는 파일은 이름을 대고 멈춘다.
  */
 import { reason } from '../../shared/errors';
+import { revealResult } from '../../shared/kit';
 import { imageKind, imagesToPdf, IMAGES_PDF_LIMITS, type ImageInput, type PageFit } from './images-pdf';
 
 interface Picked { name: string; file: File }
@@ -40,7 +41,10 @@ export function imagesPdfTool(): HTMLElement {
       <input id="conv-img-file" type="file" accept="image/*" multiple />
       <span>그림 파일을 고르거나 여기에 끌어다 놓으세요 (여러 개 가능)</span>
     </label>
-    <p class="conv-status" role="status" aria-live="polite"></p>
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <div class="img-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
     <fieldset class="img-controls" disabled>
       <legend>쪽 만들기</legend>
       <ol class="img-list" aria-label="묶을 순서"></ol>
@@ -66,7 +70,6 @@ export function imagesPdfTool(): HTMLElement {
       </div>
       <p class="conv-note">여백은 A4·Letter 에서만 씁니다. 그림 크기 그대로는 픽셀 하나를 1pt 로 보아 쪽을 그림에 맞춥니다.</p>
     </fieldset>
-    <div class="img-outputs conv-actions" aria-label="저장 결과"></div>
   `;
 
   const input = tool.querySelector<HTMLInputElement>('#conv-img-file')!;
@@ -85,6 +88,7 @@ export function imagesPdfTool(): HTMLElement {
   const message = (text: string, error = false): void => {
     status.textContent = text;
     status.dataset['tone'] = error ? 'error' : '';
+    if (error) revealResult(status);
   };
   const clearOutputs = (): void => {
     urls.forEach(url => URL.revokeObjectURL(url));
@@ -180,6 +184,7 @@ export function imagesPdfTool(): HTMLElement {
         link.textContent = `images.pdf 내려받기 (${images.length}쪽 · ${kb(bytes.length)})`;
         outputs.append(link);
         message(`${images.length}쪽 PDF 를 만들었습니다. 아래 링크를 눌러 내려받으세요.`);
+        revealResult(outputs);
       } catch (error) {
         clearOutputs();
         message(reason(error), true);

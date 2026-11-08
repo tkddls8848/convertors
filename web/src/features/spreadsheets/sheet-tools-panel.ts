@@ -35,6 +35,11 @@ export function sheetMergeTool(): HTMLElement {
       <input id="sheet-merge-file" type="file" multiple accept="${ACCEPT}" />
       <span>합칠 표 파일을 고르거나 여기에 끌어다 놓으세요 (여러 개 가능 · 고른 순서대로 붙입니다)</span>
     </label>
+    <div class="conv-results">
+      <p class="conv-status sheet-merge-status" role="status" aria-live="polite"></p>
+      <ul class="conv-notes sheet-merge-notes"></ul>
+      <div class="conv-outputs conv-actions sheet-merge-outputs" aria-label="합치기 결과"></div>
+    </div>
     <ul class="conv-list sheet-merge-list" aria-label="합칠 파일"></ul>
     <fieldset class="sheet-merge-mode">
       <legend>합치는 방식</legend>
@@ -51,15 +56,17 @@ export function sheetMergeTool(): HTMLElement {
       <button type="button" class="sheet-merge-cancel" disabled>취소</button>
       <button type="button" class="sheet-merge-reset">초기화</button>
     </div>
-    <p class="conv-status sheet-merge-status" role="status" aria-live="polite"></p>
-    <ul class="conv-notes sheet-merge-notes"></ul>
-    <div class="conv-outputs conv-actions sheet-merge-outputs" aria-label="합치기 결과"></div>
 
     <h3>나누기</h3>
     <label class="conv-drop" for="sheet-split-file">
       <input id="sheet-split-file" type="file" accept="${ACCEPT}" />
       <span>나눌 표 파일을 고르거나 여기에 끌어다 놓으세요</span>
     </label>
+    <div class="conv-results">
+      <p class="conv-status sheet-split-status" role="status" aria-live="polite"></p>
+      <ul class="conv-notes sheet-split-notes"></ul>
+      <div class="conv-outputs conv-actions sheet-split-outputs" aria-label="나누기 결과"></div>
+    </div>
     <div class="conv-form sheet-split-form" hidden>
       <label for="sheet-split-sheet">시트</label>
       <select id="sheet-split-sheet"></select>
@@ -77,9 +84,6 @@ export function sheetMergeTool(): HTMLElement {
       <button type="button" class="conv-download sheet-split-run" disabled>나누기</button>
       <button type="button" class="sheet-split-cancel" disabled>취소</button>
     </div>
-    <p class="conv-status sheet-split-status" role="status" aria-live="polite"></p>
-    <ul class="conv-notes sheet-split-notes"></ul>
-    <div class="conv-outputs conv-actions sheet-split-outputs" aria-label="나누기 결과"></div>
   `);
 
   merging(tool);

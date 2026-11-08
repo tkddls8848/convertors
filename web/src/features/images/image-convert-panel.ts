@@ -113,7 +113,14 @@ export function imageConvertTool(): HTMLElement {
       <input id="image-convert-file" type="file" accept="image/*" multiple />
       <span>그림 파일을 고르거나 여기에 끌어다 놓으세요 (여러 개 가능)</span>
     </label>
-    <p class="conv-status" role="status" aria-live="polite"></p>
+    <div class="conv-results">
+      <p class="conv-status" role="status" aria-live="polite"></p>
+      <div class="conv-table-wrap" hidden><table class="conv-table image-convert-table">
+        <thead><tr><th>파일</th><th class="num">원본</th><th class="num">결과</th><th>크기(px)</th><th class="num">화질</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
+    </div>
     <ul class="conv-list image-convert-list" aria-label="바꿀 그림"></ul>
     <fieldset class="image-convert-controls" disabled>
       <legend>바꾸기</legend>
@@ -156,11 +163,6 @@ export function imageConvertTool(): HTMLElement {
         <button type="button" data-action="reset">초기화</button>
       </div>
     </fieldset>
-    <div class="conv-table-wrap" hidden><table class="conv-table image-convert-table">
-      <thead><tr><th>파일</th><th class="num">원본</th><th class="num">결과</th><th>크기(px)</th><th class="num">화질</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
-    <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
   `);
 
   const input = need<HTMLInputElement>(tool, '#image-convert-file');

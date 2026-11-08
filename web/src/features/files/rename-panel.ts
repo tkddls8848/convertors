@@ -34,6 +34,16 @@ export function renameTool(): HTMLElement {
       <input id="rename-file" type="file" multiple />
       <span>이름을 바꿀 파일을 고르거나 여기에 끌어다 놓으세요 (여러 개 가능)</span>
     </label>
+    <div class="conv-results">
+      <p class="conv-status rename-status" role="status" aria-live="polite"></p>
+      <div class="conv-table-wrap">
+        <table class="conv-table rename-table" hidden>
+          <thead><tr><th class="num">#</th><th>원래 이름</th><th>새 이름</th><th>비고</th><th>순서</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="conv-outputs conv-actions rename-outputs" aria-label="내려받기"></div>
+    </div>
 
     <fieldset>
       <legend>1. 찾아 바꾸기</legend>
@@ -85,18 +95,10 @@ export function renameTool(): HTMLElement {
       </div>
     </fieldset>
 
-    <p class="conv-status rename-status" role="status" aria-live="polite"></p>
-    <div class="conv-table-wrap">
-      <table class="conv-table rename-table" hidden>
-        <thead><tr><th class="num">#</th><th>원래 이름</th><th>새 이름</th><th>비고</th><th>순서</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
     <div class="conv-actions">
       <button type="button" class="conv-download rename-save" disabled>ZIP 으로 묶기</button>
       <button type="button" class="rename-reset">초기화</button>
     </div>
-    <div class="conv-outputs conv-actions rename-outputs" aria-label="내려받기"></div>
   `);
 
   const input = need<HTMLInputElement>(tool, '#rename-file');

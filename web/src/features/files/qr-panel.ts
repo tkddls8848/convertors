@@ -90,6 +90,13 @@ export function qrTool(): HTMLElement {
       </div>
     </fieldset>
 
+    <div class="conv-results">
+      <p class="conv-status qr-status" role="status" aria-live="polite"></p>
+      <div class="qr-preview" hidden></div>
+      <ul class="conv-notes qr-notes"></ul>
+      <div class="conv-outputs conv-actions qr-outputs" aria-label="내려받기"></div>
+    </div>
+
     <fieldset>
       <legend>모양</legend>
       <div class="conv-form">
@@ -107,10 +114,6 @@ export function qrTool(): HTMLElement {
       </div>
     </fieldset>
 
-    <p class="conv-status qr-status" role="status" aria-live="polite"></p>
-    <div class="qr-preview" hidden></div>
-    <ul class="conv-notes qr-notes"></ul>
-    <div class="conv-outputs conv-actions qr-outputs" aria-label="내려받기"></div>
   `);
 
   const value = (id: string): string => need<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(tool, `#qr-${id}`).value;

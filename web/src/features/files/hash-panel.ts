@@ -35,19 +35,21 @@ export function hashTool(): HTMLElement {
       <input id="hash-file" type="file" multiple />
       <span>해시를 셀 파일을 고르거나 여기에 끌어다 놓으세요 (여러 개 가능)</span>
     </label>
-    <p class="conv-status hash-status" role="status" aria-live="polite"></p>
-    <div class="conv-result hash-verdict" aria-live="polite"></div>
-    <div class="conv-table-wrap">
-      <table class="conv-table hash-table" hidden>
-        <thead><tr><th>이름</th><th class="num">크기</th><th class="hash-col">해시</th><th>복사</th><th>비고</th></tr></thead>
-        <tbody></tbody>
-      </table>
+    <div class="conv-results">
+      <p class="conv-status hash-status" role="status" aria-live="polite"></p>
+      <div class="conv-result hash-verdict" aria-live="polite"></div>
+      <div class="conv-table-wrap">
+        <table class="conv-table hash-table" hidden>
+          <thead><tr><th>이름</th><th class="num">크기</th><th class="hash-col">해시</th><th>복사</th><th>비고</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="conv-actions">
+        <button type="button" class="hash-stop" disabled>멈추기</button>
+        <button type="button" class="hash-reset">초기화</button>
+      </div>
+      <div class="conv-outputs conv-actions hash-outputs" aria-label="해시 목록 내려받기"></div>
     </div>
-    <div class="conv-actions">
-      <button type="button" class="hash-stop" disabled>멈추기</button>
-      <button type="button" class="hash-reset">초기화</button>
-    </div>
-    <div class="conv-outputs conv-actions hash-outputs" aria-label="해시 목록 내려받기"></div>
   `);
 
   const algorithmSelect = need<HTMLSelectElement>(tool, '#hash-algorithm');

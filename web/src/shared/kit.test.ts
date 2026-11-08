@@ -35,7 +35,7 @@ it('화면 밖 결과 칸으로 링크가 생기면 그 칸이 보이게 스크�
   outputs(links).add(new Uint8Array([1]), 'a.pdf', 'application/pdf');
   expect(scroll).toHaveBeenCalledTimes(1);
   expect(scroll.mock.contexts[0]).toBe(results);
-  expect(scroll).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
+  expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
 });
 
 it('위로 밀려 올라간 결과 칸도 드러낸다', () => {
@@ -68,7 +68,7 @@ it('움직임 줄이기 설정이면 애니메이션 없이 옮긴다', () => {
   reducedMotion(true);
   placeAt(1200, 1300);
   revealResult(links);
-  expect(scroll).toHaveBeenCalledWith({ block: 'nearest', behavior: 'auto' });
+  expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' });
 });
 
 it('결과 칸 밖의 요소는 그 요소 자체를 드러낸다', () => {
@@ -77,4 +77,16 @@ it('결과 칸 밖의 요소는 그 요소 자체를 드러낸다', () => {
   lone.getBoundingClientRect = () => ({ top: 900, bottom: 950, left: 0, right: 1, width: 1, height: 50, x: 0, y: 900, toJSON: () => ({}) });
   revealResult(lone);
   expect(scroll.mock.contexts[0]).toBe(lone);
+});
+
+it('긴 결과 칸은 윗부분이 보이면 스크롤하지 않는다 — 입력할 때마다 화면이 튀지 않게', () => {
+  placeAt(300, 2400);
+  revealResult(links);
+  expect(scroll).not.toHaveBeenCalled();
+});
+
+it('윗부분이 화면 맨 아래에 겨우 걸치면 드러낸다', () => {
+  placeAt(740, 900);
+  revealResult(links);
+  expect(scroll).toHaveBeenCalledTimes(1);
 });
