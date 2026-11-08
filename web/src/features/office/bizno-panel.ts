@@ -28,9 +28,6 @@ export function biznoTool(): HTMLElement {
     </div>
     <div class="conv-results">
     <p class="conv-status" role="status" aria-live="polite"></p>
-    <div class="conv-actions">
-      <button type="button" id="bizno-copy" disabled>맞는 번호만 복사</button>
-    </div>
     <div class="conv-table-wrap">
       <table class="conv-table" id="bizno-table" hidden>
         <thead><tr><th>입력</th><th>정규화</th><th>종류</th><th>결과</th><th>이유</th><th>참고</th></tr></thead>
@@ -38,6 +35,9 @@ export function biznoTool(): HTMLElement {
       </table>
     </div>
     <div class="conv-outputs conv-actions" id="bizno-outputs" aria-label="내려받기"></div>
+    </div>
+    <div class="conv-actions">
+      <button type="button" id="bizno-copy" disabled>맞는 번호만 복사</button>
     </div>
   `);
 

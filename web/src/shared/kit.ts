@@ -37,6 +37,18 @@ export function statusLine(element: HTMLElement): Say {
   };
 }
 
+/**
+ * 초점이 입력칸(글 칸·고르기·체크)에 있으면 사람이 그 칸을 만지는 중이다. 부가세·QR·
+ * 이름 바꾸기처럼 입력할 때마다 결과가 바뀌는 도구에서 그때 화면을 옮기면 치던 칸이
+ * 화면 밖으로 사라진다. 단추·파일 고르기로 시작한 실행만 결과로 데려간다.
+ */
+function typing(): boolean {
+  const active = document.activeElement;
+  if (active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) return true;
+  if (active instanceof HTMLInputElement) return !['file', 'button', 'submit', 'reset'].includes(active.type);
+  return active instanceof HTMLElement && active.isContentEditable;
+}
+
 /** 결과 칸 윗부분이 화면 아래 끝에서 이만큼(px)은 올라와 있어야 "보인다"고 본다. */
 const REVEAL_MARGIN = 64;
 
@@ -47,6 +59,7 @@ const REVEAL_MARGIN = 64;
  * `aria-live` 가 이미 알린다.
  */
 export function revealResult(element: HTMLElement): void {
+  if (typing()) return;
   const target = element.closest<HTMLElement>('.conv-results') ?? element;
   const { top } = target.getBoundingClientRect();
   if (top >= 0 && top <= window.innerHeight - REVEAL_MARGIN) return;

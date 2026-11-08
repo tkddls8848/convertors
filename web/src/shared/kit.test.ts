@@ -90,3 +90,26 @@ it('윗부분이 화면 맨 아래에 겨우 걸치면 드러낸다', () => {
   revealResult(links);
   expect(scroll).toHaveBeenCalledTimes(1);
 });
+
+it('입력칸에서 글자를 치는 중이면(초점이 입력칸) 드러내지 않는다 — 부가세·QR 처럼 입력마다 결과가 바뀌는 도구', () => {
+  placeAt(1200, 1300);
+  for (const markup of ['<input type="text" />', '<textarea></textarea>', '<select><option>a</option></select>', '<input type="checkbox" />']) {
+    document.body.insertAdjacentHTML('afterbegin', markup);
+    (document.body.firstElementChild as HTMLElement).focus();
+    outputs(links).add(new Uint8Array([1]), 'a.png', 'image/png');
+    statusLine(status)('숫자를 확인하세요.', 'error');
+    document.body.firstElementChild!.remove();
+  }
+  expect(scroll).not.toHaveBeenCalled();
+});
+
+it('단추나 파일 고르기로 시작한 실행의 결과는 드러낸다', () => {
+  placeAt(1200, 1300);
+  for (const markup of ['<button type="button">저장</button>', '<input type="file" />']) {
+    document.body.insertAdjacentHTML('afterbegin', markup);
+    (document.body.firstElementChild as HTMLElement).focus();
+    revealResult(links);
+    document.body.firstElementChild!.remove();
+  }
+  expect(scroll).toHaveBeenCalledTimes(2);
+});

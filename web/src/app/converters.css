@@ -258,16 +258,19 @@
   gap: 0.5rem;
   margin: 0.75rem 0;
 }
-.conv-results > :is(.conv-status, [class*='outputs'], ul, ol):empty,
+.conv-results > :is(.conv-status, [class*='outputs'], ul, ol, pre):empty,
+.conv-results > .conv-table-wrap:has(> table[hidden]),
 .conv-results > [hidden] { display: none; }
 .conv-results > * { margin-top: 0; margin-bottom: 0; }
-.conv-results:has(> :not([hidden]):not(:empty)) {
+/* 긴 표는 상자 안에서 스크롤한다 — 입력칸과 실행 단추를 끝없이 밀어내지 않게. */
+.conv-results > .conv-table-wrap { max-height: 24rem; overflow: auto; }
+.conv-results:has(> :not([hidden]):not(:empty):not(.conv-table-wrap), > .conv-table-wrap:not([hidden]) > :not([hidden])) {
   padding: 0.75rem;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
 }
-.conv-results:not(:has(> :not([hidden]):not(:empty))) { margin: 0; }
+.conv-results:not(:has(> :not([hidden]):not(:empty):not(.conv-table-wrap), > .conv-table-wrap:not([hidden]) > :not([hidden]))) { margin: 0; }
 
 .conv-stats {
   margin: 0.5rem 0;

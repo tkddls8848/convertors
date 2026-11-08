@@ -44,11 +44,11 @@ export function hashTool(): HTMLElement {
           <tbody></tbody>
         </table>
       </div>
-      <div class="conv-actions">
-        <button type="button" class="hash-stop" disabled>멈추기</button>
-        <button type="button" class="hash-reset">초기화</button>
-      </div>
       <div class="conv-outputs conv-actions hash-outputs" aria-label="해시 목록 내려받기"></div>
+    </div>
+    <div class="conv-actions">
+      <button type="button" class="hash-stop" disabled>멈추기</button>
+      <button type="button" class="hash-reset">초기화</button>
     </div>
   `);
 

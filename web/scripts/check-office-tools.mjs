@@ -72,6 +72,41 @@ try {
     return Uint8Array.from(await link.evaluate(async a => Array.from(new Uint8Array(await (await fetch(a.href)).arrayBuffer()))));
   };
 
+  // 아무것도 하지 않은 도구에는 빈 결과 상자가 보이지 않는다. 상자가 보이면 단추 말고
+  // 읽을 것(상태·표·미리보기)이 들어 있어야 한다. 25개 도구 모두.
+  await page.setViewportSize({ width: 1366, height: 768 });
+  for (const id of await page.locator('.conv-choice').evaluateAll(buttons => buttons.map(button => button.dataset.choice))) {
+    await page.locator(`.conv-choice[data-choice="${id}"]`).click();
+    await page.waitForFunction(id => document.querySelector(`.conv-choice[data-choice="${id}"]`)?.getAttribute('aria-pressed') === 'true'
+      && document.querySelectorAll('.conv-stage .conv-tool').length === 1, id);
+    const empty = await page.locator('.conv-stage .conv-results').evaluateAll(boxes => boxes.filter(box => {
+      if (!box.offsetHeight) return false;
+      const copy = box.cloneNode(true);
+      copy.querySelectorAll('button').forEach(button => button.remove());
+      return !box.querySelector('img, canvas, svg') && ![...box.querySelectorAll('*')].some(el => el.offsetHeight && el.childElementCount === 0 && el.tagName !== 'BUTTON' && el.textContent.trim());
+    }).length);
+    assert.equal(empty, 0, `${id}: 실행 전에 빈 결과 상자가 보입니다.`);
+  }
+
+  // 입력할 때마다 결과가 바뀌는 도구에서 치는 동안 화면이 옮겨 가면 안 된다.
+  const typeWithoutJump = async (id, prepare, field) => {
+    const tool = await choose(id);
+    await prepare(tool);
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.waitForTimeout(300);
+    const before = await page.evaluate(() => scrollY);
+    const original = await tool.locator(field).inputValue();
+    await tool.locator(field).focus();
+    await page.keyboard.type('12');
+    await page.waitForTimeout(500);
+    assert.equal(await page.evaluate(() => scrollY), before, `${id}: ${field} 에 치는 동안 화면이 옮겨 갔습니다.`);
+    await tool.locator(field).fill(original); // 도구는 상태를 들고 있다 — 뒤 검사가 쓰는 값을 되돌린다
+  };
+  await typeWithoutJump('vat', async () => {}, '#vat-rate');
+  await typeWithoutJump('qr', async tool => { await tool.locator('#qr-kind').selectOption('contact'); }, '#qr-name');
+  await (await choose('qr')).locator('#qr-kind').selectOption('text');
+  await page.setViewportSize({ width: 1280, height: 720 });
+
   // 모든 도구가 열리고, 한 화면에 id 가 겹치지 않는다.
   for (const id of Object.keys(TOOLS)) {
     await choose(id);
@@ -141,6 +176,13 @@ try {
   await tool.locator('.rename-save').click();
   const renamed = unzipSync(await bytesOf(tool.locator('.rename-outputs a').first()));
   assert.deepEqual(Object.keys(renamed).sort(), ['현장_01.jpg', '현장_02.jpg']);
+  // 300개면 결과 표가 길다 — 상자 안에서 스크롤해 규칙 칸과 묶기 단추를 밀어내지 않는다.
+  await tool.locator('.rename-reset').click();
+  await tool.locator('#rename-file').setInputFiles(Array.from({ length: 300 }, (_, i) => ({ name: `f${i}.txt`, mimeType: 'text/plain', buffer: Buffer.from([i % 256]) })));
+  await page.waitForFunction(() => document.querySelectorAll('.rename-table tbody tr').length === 300);
+  const tableHeight = await tool.locator('.rename-table').evaluate(table => table.closest('.conv-table-wrap').offsetHeight);
+  assert.ok(tableHeight <= 24 * 16 + 2, `이름 바꾸기 결과 표가 ${tableHeight}px 로 입력칸을 밀어냅니다.`);
+  await tool.locator('.rename-reset').click();
 
   // 표 합치기 — CP949 가 아닌 UTF-8 CSV 둘을 이어 붙인다.
   tool = await choose('sheet-merge');
