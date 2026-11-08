@@ -19,10 +19,17 @@ export const GROUPS: Group[] = [
     title: '문서 형식 변환',
     choices: [
       { id: 'document', title: '문서·전자책 변환', summary: 'DOCX·ODT·PDF·EPUB 등의 본문을 10가지 형식으로', build: () => import('../features/documents/format-panel').then(m => m.documentTool()) },
-      { id: 'spreadsheet', title: '스프레드시트 변환', summary: 'Excel·ODS·CSV·JSON 등, 여러 시트도 한 번에', build: () => import('../features/documents/format-panel').then(m => m.spreadsheetTool()) },
       { id: 'text-hwpx', title: '텍스트·Markdown → HWPX', summary: '붙여 넣은 글과 표를 한글에서 열리는 문서로', build: () => import('../features/documents/text-hwpx-panel').then(m => m.textHwpxTool()) },
       { id: 'hwpx-markdown', title: 'HWPX → Markdown', summary: '한글 문서의 글 순서와 표 구조를 그대로 옮긴다', build: () => import('../features/documents/hwpx-panel').then(m => m.hwpxTool()) },
       { id: 'encoding', title: '인코딩 변환 (CSV·텍스트)', summary: 'CP949 ↔ UTF-8, BOM 과 줄바꿈까지 맞춘다', build: () => import('../features/text/encoding-panel').then(m => m.encodingTool()) },
+    ],
+  },
+  {
+    title: '엑셀·표',
+    choices: [
+      { id: 'sheet-edit', title: '엑셀 편집', summary: '.xls·.xlsx 견적서의 칸을 고치면 합계까지 다시 계산, 양식은 그대로', build: () => import('../features/spreadsheets/sheet-edit-panel').then(m => m.sheetEditTool()) },
+      { id: 'spreadsheet', title: '스프레드시트 변환', summary: 'Excel·ODS·CSV·JSON 등, 여러 시트도 한 번에', build: () => import('../features/documents/format-panel').then(m => m.spreadsheetTool()) },
+      { id: 'sheet-merge', title: '표 합치기·나누기', summary: 'CSV·엑셀 여러 개를 하나로, 하나를 여럿으로', build: () => import('../features/spreadsheets/sheet-tools-panel').then(m => m.sheetMergeTool()) },
     ],
   },
   {
@@ -49,7 +56,6 @@ export const GROUPS: Group[] = [
   {
     title: '사무 계산',
     choices: [
-      { id: 'sheet-edit', title: '엑셀 숫자 고치기', summary: '.xls·.xlsx 견적서의 숫자를 고치면 합계까지 다시 계산, 양식은 그대로', build: () => import('../features/spreadsheets/sheet-edit-panel').then(m => m.sheetEditTool()) },
       { id: 'money', title: '금액 한글 표기', summary: '12,345,000 → 일금 일천이백삼십사만오천원정', build: () => import('../features/office/money-panel').then(m => m.moneyTool()) },
       { id: 'vat', title: '부가세 계산', summary: '공급가액·세액·합계를 어느 쪽에서든', build: () => import('../features/office/vat-panel').then(m => m.vatTool()) },
       { id: 'date', title: '날짜·영업일 계산', summary: 'D-day, N일 뒤, 두 날짜 사이의 평일 수', build: () => import('../features/office/date-panel').then(m => m.dateTool()) },
@@ -60,7 +66,6 @@ export const GROUPS: Group[] = [
     title: '파일',
     choices: [
       { id: 'zip', title: 'ZIP 묶기·풀기', summary: '윈도우가 만든 ZIP 의 한글 이름도 그대로 읽는다', build: () => import('../features/files/zip-panel').then(m => m.zipTool()) },
-      { id: 'sheet-merge', title: '표 합치기·나누기', summary: 'CSV·엑셀 여러 개를 하나로, 하나를 여럿으로', build: () => import('../features/spreadsheets/sheet-tools-panel').then(m => m.sheetMergeTool()) },
       { id: 'rename', title: '파일 이름 일괄 바꾸기', summary: '번호·날짜·바꾸기 규칙으로 이름을 바꿔 ZIP 으로', build: () => import('../features/files/rename-panel').then(m => m.renameTool()) },
       { id: 'hash', title: '파일 해시 확인', summary: 'SHA-256·MD5 로 받은 파일이 원본과 같은지', build: () => import('../features/files/hash-panel').then(m => m.hashTool()) },
       { id: 'qr', title: 'QR 코드 만들기', summary: '주소·글·Wi-Fi·연락처를 PNG·SVG 로', build: () => import('../features/files/qr-panel').then(m => m.qrTool()) },

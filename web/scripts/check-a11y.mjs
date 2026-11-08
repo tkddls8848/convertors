@@ -59,9 +59,13 @@ function inspect() {
 try {
   const page = await browser.newPage();
   await page.goto(base);
-  await page.locator('.conv-choice').last().waitFor();
+  await page.locator('.conv-choice').last().waitFor({ state: 'attached' });
   const ids = await page.locator('.conv-choice').evaluateAll(nodes => nodes.map(node => node.dataset.choice));
   check(ids.length === 26, '도구 수', ids.length);
+  // 갈래는 처음에 접혀 있다. 모두 펼친 뒤 Tab 으로 도구마다 닿는지 본다.
+  for (const groupToggle of await page.locator('.conv-group__toggle').all()) {
+    if (await groupToggle.getAttribute('aria-expanded') === 'false') await groupToggle.click();
+  }
   const reached = new Set();
   for (let i = 0; i < 100 && reached.size < ids.length; i++) {
     await page.keyboard.press('Tab');
@@ -125,7 +129,7 @@ try {
   ]) {
     await page.route('**/licenses/index.json', route => route.fulfill({ status, contentType: 'application/json', body }));
     await page.goto(base);
-    await page.locator('.conv-choice').last().waitFor();
+    await page.locator('.conv-choice').last().waitFor({ state: 'attached' });
     await page.waitForFunction(() => document.querySelector('.conv-footer')?.dataset.licensesLoaded === 'true', null, { timeout: 1500 }).catch(() => {});
     check((await page.locator('.conv-licenses').count() > 0) === expected, '고지 목록 처리', label);
     if (expected && await page.locator('.conv-licenses').count()) {
@@ -138,7 +142,7 @@ try {
   // Firefox의 미디어 모의 설정은 새 문서에서 스타일에 반영되므로 다시 연다.
   await page.emulateMedia({ reducedMotion: 'reduce', contrast: 'more' });
   await page.goto(base);
-  await page.locator('.conv-choice').last().waitFor();
+  await page.locator('.conv-choice').last().waitFor({ state: 'attached' });
   const preferences = await page.evaluate(() => {
     const choice = document.querySelector('.conv-choice'), style = getComputedStyle(choice);
     return { border: style.borderColor, line: style.getPropertyValue('--line').trim(), animation: style.animationName, transition: style.transitionDuration };

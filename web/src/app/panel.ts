@@ -43,6 +43,7 @@ export function mountConverters(root: HTMLElement): void {
   const built = new Map<string, HTMLElement>();
   const pending = new Map<string, Promise<HTMLElement>>();
   const buttons = new Map<string, HTMLButtonElement>();
+  const expanders = new Map<string, () => void>();
   // 코드를 받는 사이에 다른 것을 고르면 늦게 도착한 쪽이 화면을 덮지 않게 한다.
   let wanted = '';
 
@@ -76,6 +77,7 @@ export function mountConverters(root: HTMLElement): void {
     for (const [id, button] of buttons) button.setAttribute('aria-pressed', String(id === choice.id));
     toggle.textContent = `${choice.title} · 다른 도구 고르기`;
     collapse(true);
+    expanders.get(choice.id)?.();
     let tool = built.get(choice.id);
     if (!tool) {
       stage.removeAttribute('aria-labelledby');
@@ -117,14 +119,34 @@ export function mountConverters(root: HTMLElement): void {
     }
   };
 
-  for (const group of GROUPS) {
+  // 갈래는 처음에 접어 둔다. 스물여섯을 한꺼번에 펼치면 무엇이 어디 있는지 헷갈린다.
+  // 제목을 눌러 펼치고 접으며, 고른 도구가 든 갈래는 펼쳐 둔다.
+  for (const [index, group] of GROUPS.entries()) {
     const section = document.createElement('div');
     section.className = 'conv-group';
     const heading = document.createElement('h3');
     heading.className = 'conv-group__title';
-    heading.textContent = group.title;
+    const toggleGroup = document.createElement('button');
+    toggleGroup.type = 'button';
+    toggleGroup.className = 'conv-group__toggle';
+    const label = document.createElement('span');
+    label.textContent = group.title;
+    const count = document.createElement('span');
+    count.className = 'conv-group__count';
+    count.textContent = `${group.choices.length}`;
+    toggleGroup.append(label, count);
+    heading.append(toggleGroup);
     const grid = document.createElement('div');
     grid.className = 'conv-group__choices';
+    grid.id = `conv-group-${index}`;
+    toggleGroup.setAttribute('aria-controls', grid.id);
+    const expand = (open: boolean): void => {
+      grid.hidden = !open;
+      toggleGroup.setAttribute('aria-expanded', String(open));
+    };
+    expand(false);
+    toggleGroup.addEventListener('click', () => expand(grid.hidden));
+    for (const choice of group.choices) expanders.set(choice.id, () => expand(true));
     section.append(heading, grid);
 
     for (const choice of group.choices) {

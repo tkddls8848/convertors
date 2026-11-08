@@ -29,7 +29,7 @@ const TOOLS = {
   'pdf-nup': 'PDF 모아찍기·빈 쪽 빼기',
   'pdf-meta': 'PDF 문서 정보 보기·지우기',
   'image-convert': '이미지 형식·크기 바꾸기',
-  'sheet-edit': '엑셀 숫자 고치기',
+  'sheet-edit': '엑셀 편집',
   'text-diff': '텍스트 비교',
   'text-count': '글자 수 세기',
   redact: '개인정보 가리기',
@@ -63,6 +63,8 @@ try {
     // 좁은 화면에서는 고른 뒤 목록이 접힌다. 접혀 있으면 펼친 뒤 고른다.
     const toggle = page.locator('.conv-choices__toggle');
     if (await toggle.isVisible() && await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+    const group = page.locator('.conv-group', { has: page.locator(`.conv-choice[data-choice="${id}"]`) }).locator('.conv-group__toggle');
+    if (await group.getAttribute('aria-expanded') === 'false') await group.click();
     await page.locator(`.conv-choice[data-choice="${id}"]`).click();
     await page.getByRole('heading', { name: TOOLS[id], exact: true }).waitFor();
     assert.equal(await page.locator('.conv-tool').count(), 1);
@@ -77,6 +79,9 @@ try {
   // 아무것도 하지 않은 도구에는 빈 결과 상자가 보이지 않는다. 상자가 보이면 단추 말고
   // 읽을 것(상태·표·미리보기)이 들어 있어야 한다. 25개 도구 모두.
   await page.setViewportSize({ width: 1366, height: 768 });
+  for (const groupToggle of await page.locator('.conv-group__toggle').all()) {
+    if (await groupToggle.getAttribute('aria-expanded') === 'false') await groupToggle.click();
+  }
   for (const id of await page.locator('.conv-choice').evaluateAll(buttons => buttons.map(button => button.dataset.choice))) {
     await page.locator(`.conv-choice[data-choice="${id}"]`).click();
     await page.waitForFunction(id => document.querySelector(`.conv-choice[data-choice="${id}"]`)?.getAttribute('aria-pressed') === 'true'

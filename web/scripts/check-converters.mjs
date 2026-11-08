@@ -31,6 +31,8 @@ try {
     // 좁은 화면에서는 고른 뒤 목록이 접힌다. 접혀 있으면 펼친 뒤 고른다.
     const toggle = page.locator('.conv-choices__toggle');
     if (await toggle.isVisible() && await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+    const group = page.locator('.conv-group', { has: page.locator(`.conv-choice[data-choice="${id}"]`) }).locator('.conv-group__toggle');
+    if (await group.getAttribute('aria-expanded') === 'false') await group.click();
     await page.locator(`.conv-choice[data-choice="${id}"]`).click();
     await page.waitForFunction(() => document.querySelectorAll('.conv-tool').length === 1);
   };
@@ -371,6 +373,8 @@ try {
   assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
   await toggle.click();
   assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+  const zipGroup = page.locator('.conv-group', { has: page.locator('.conv-choice[data-choice="zip"]') }).locator('.conv-group__toggle');
+  if (await zipGroup.getAttribute('aria-expanded') === 'false') await zipGroup.click();
   await page.locator('.conv-choice[data-choice="zip"]').click();
   await page.getByRole('heading', { name: 'ZIP 묶기·풀기', exact: true }).waitFor();
   assert.equal(await toggle.getAttribute('aria-expanded'), 'false');

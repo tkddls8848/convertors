@@ -103,3 +103,23 @@ it('넓은 화면에서 아래로 내려 둔 채 다른 도구를 고르면 그 
   await vi.waitFor(() => expect(document.querySelector('.conv-stage h2')!.textContent).toBe('Second'));
   expect(scroll).toHaveBeenCalledTimes(1);
 });
+
+it('갈래는 처음에 접혀 있고, 제목을 눌러 펼친다', () => {
+  const toggle = document.querySelector<HTMLButtonElement>('.conv-group__toggle')!;
+  const list = document.getElementById(toggle.getAttribute('aria-controls')!)!;
+  expect(toggle.textContent).toContain('Tools');
+  expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  expect(list.hidden).toBe(true);
+  toggle.click();
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(list.hidden).toBe(false);
+  toggle.click();
+  expect(list.hidden).toBe(true);
+});
+
+it('고른 도구가 든 갈래는 펼쳐 둔다 — 지금 어디에 있는지 보이게', async () => {
+  builders.first.mockImplementation(() => tool('First'));
+  choose('first');
+  await vi.waitFor(() => expect(document.querySelector('.conv-stage h2')!.textContent).toBe('First'));
+  expect(document.querySelector('.conv-group__toggle')!.getAttribute('aria-expanded')).toBe('true');
+});

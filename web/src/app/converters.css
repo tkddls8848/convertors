@@ -63,7 +63,7 @@
   .conv-choices .conv-choice[aria-pressed='true'] .conv-choice__title { font-weight: 700; }
   /* 설명은 화면에서만 숨긴다 — 버튼 이름에는 남는다. */
   .conv-choices .conv-choice__summary { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .conv-choices .conv-group + .conv-group { margin-top: 0.9rem; }
+  .conv-choices .conv-group + .conv-group { margin-top: 0.25rem; }
 }
 
 /* 입력칸·링크·펼치기 단추도 같은 표시로 키보드의 현재 자리를 알려 준다. */
@@ -98,6 +98,36 @@
   font-weight: 600;
   letter-spacing: 0.02em;
 }
+
+/* 갈래 제목은 펼치기 단추다. 접힌 갈래는 이름과 도구 수만 보인다. */
+.conv-group__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.25rem;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.conv-group__toggle:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.conv-group__toggle::after { content: '▸'; margin-left: auto; color: var(--muted); }
+.conv-group__toggle[aria-expanded='true']::after { content: '▾'; }
+.conv-group__count {
+  padding: 0 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.conv-group__choices[hidden], .conv-choices .conv-group__choices[hidden] { display: none; }
+.conv-group + .conv-group { margin-top: 0.25rem; }
 
 .conv-group__choices {
   display: grid;

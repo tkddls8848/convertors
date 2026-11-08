@@ -1,5 +1,5 @@
 /**
- * 엑셀 숫자 고치기 — 엑셀이 없는 곳(휴대폰)에서 견적서의 숫자 몇 칸을 급히 고친다.
+ * 엑셀 편집 — 엑셀이 없는 곳(휴대폰)에서 견적서의 숫자 몇 칸을 급히 고친다.
  *
  * 화면은 시트를 표로 보여 주고, 숫자 칸을 누르면 그 자리에서 고친다. 고칠 때마다 그
  * 칸을 읽는 수식(금액·합계·부가세)을 다시 계산해 바로 보여 준다(`sheet-recalc.ts`).
@@ -24,7 +24,7 @@ const show = (value: CellValue): string =>
 
 export function sheetEditTool(): HTMLElement {
   const tool = toolSection('conv-sheet-edit', `
-    <h2>엑셀 숫자 고치기</h2>
+    <h2>엑셀 편집</h2>
     <p class="conv-note">견적서·명세서(.xls·.xlsx)의 <strong>숫자 칸</strong>을 고치면 합계·부가세 같은 수식 칸도 다시 계산해 넣습니다.
       양식(글꼴·테두리·병합·인쇄 설정)은 원본 그대로 두고 고친 칸의 값만 바꿉니다. 파일은 이 기기를 벗어나지 않습니다. 20MB까지.</p>
     <details class="conv-more"><summary>안 되는 것</summary>
