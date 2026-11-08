@@ -56,3 +56,35 @@ describe('xlsx 의 칸 값만 바꿔 넣는다', () => {
     expect(problems[0]!.reason).toMatch(/시트/);
   });
 });
+
+describe('xlsx 글자 칸', () => {
+  function withSharedStrings(): Uint8Array {
+    const ws = XLSX.utils.aoa_to_sheet([['품목', '수량'], ['볼펜', 3], ['합계', null]]);
+    ws['A4'] = { t: 's', v: '볼펜 외', f: 'A2&" 외"' };
+    ws['!ref'] = 'A1:B4';
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '견적');
+    return new Uint8Array(XLSX.write(wb, { bookType: 'xlsx', type: 'array', bookSST: true }) as ArrayBuffer);
+  }
+
+  it('공유 문자열 칸도, 그냥 글자 칸도 그 칸 안에 글자를 넣어 바꾼다(다른 칸은 그대로)', () => {
+    const { bytes, problems } = patchXlsx(withSharedStrings(), [
+      { sheet: '견적', address: 'A2', value: '만년필 <고급> & 세트' },
+      { sheet: '견적', address: 'A4', value: '만년필 <고급> & 세트 외' },
+    ]);
+    expect(problems).toEqual([]);
+    const sheet = XLSX.read(bytes, { cellFormula: true }).Sheets['견적']!;
+    expect(sheet['A2']!.v).toBe('만년필 <고급> & 세트');
+    expect(sheet['A1']!.v).toBe('품목');
+    expect(sheet['A3']!.v).toBe('합계');
+    expect(sheet['A4']).toMatchObject({ v: '만년필 <고급> & 세트 외', f: 'A2&" 외"' });
+  });
+
+  it('글자 칸에 숫자, 숫자 칸에 글자는 넣지 않는다', () => {
+    const { problems } = patchXlsx(withSharedStrings(), [
+      { sheet: '견적', address: 'A2', value: 5 },
+      { sheet: '견적', address: 'B2', value: '셋' },
+    ]);
+    expect(problems.map(p => p.address)).toEqual(['A2', 'B2']);
+  });
+});

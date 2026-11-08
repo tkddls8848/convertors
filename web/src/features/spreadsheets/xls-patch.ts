@@ -11,9 +11,15 @@
  *   - 수식 칸의 계산값: 숫자·참거짓·오류는 8바이트 자리에 들어간다. **글자 결과**는 뒤따르는
  *     STRING 기록의 길이가 바뀌어 못 쓴다 — 그 칸은 "열 때 다시 계산" 표시를 하고 알린다.
  *   - 빈 칸·글자 칸에 숫자 넣기: 기록을 새로 끼워야 해서 못 한다.
+ *   - 글자 칸(LABELSST): 칸은 공유 문자열 표(SST)의 번호만 든다. 새 글자를 SST 끝에 붙이고
+ *     칸의 번호(4바이트)만 바꾼다. SST 가 길어지므로 그 뒤 내용이 밀린다 — 시트 시작
+ *     위치(BOUNDSHEET)와 행 색인(INDEX)의 절대 위치를 함께 고치고, 복합 문서를 다시 묶는다.
+ *     각 스트림의 내용은 그대로이고 Workbook 스트림만 SST 꼬리가 늘어난다.
  * 덧붙여 RECALCID 의 계산기 빌드 번호를 0 으로 둔다. 엑셀은 저장한 계산기가 자기보다
  * 옛것이면 열 때 모든 수식을 다시 계산한다 — 우리가 못 쓴 칸도 엑셀에서는 맞게 보인다.
  */
+
+import { CFB } from 'xlsx';
 
 export type XlsValue = number | string | boolean | { error: string } | null;
 export interface XlsWrite { sheet: string; address: string; value: XlsValue }
@@ -52,10 +58,15 @@ export function decodeRk(rk: number): number {
 const RT = {
   BOF: 0x0809, EOF: 0x000a, FILEPASS: 0x002f, BOUNDSHEET: 0x0085, RECALCID: 0x01c1,
   NUMBER: 0x0203, RK: 0x027e, MULRK: 0x00bd, FORMULA: 0x0006,
+  SST: 0x00fc, CONTINUE: 0x003c, LABELSST: 0x00fd, LABEL: 0x0204, INDEX: 0x020b,
 } as const;
+/** BIFF8 기록 하나의 본문 최대 길이. */
+const MAX_RECORD = 8224;
+/** 한 칸에 넣을 글자 수 한도. 공유 문자열 하나가 기록 하나에 들어가야 한다. */
+export const MAX_TEXT = 4000;
 
 export interface BiffCell {
-  kind: 'number' | 'rk' | 'formula' | 'formula-text';
+  kind: 'number' | 'rk' | 'formula' | 'formula-text' | 'sst' | 'label';
   /** 값이 든 자리(스트림 안 바이트 위치). number·formula 는 8바이트, rk 는 4바이트. */
   at: number;
   /** 수식 칸의 grbit 자리. */
@@ -70,13 +81,18 @@ const columnName = (index: number): string => {
 };
 const addressOf = (row: number, col: number): string => `${columnName(col)}${row + 1}`;
 
+/** 공유 문자열 표의 자리: 첫 기록, 마지막 기록(SST 또는 CONTINUE), 사슬이 끝난 다음 자리. */
+export interface SstChain { at: number; lastAt: number; end: number; unique: number }
+
 export function indexBiff(stream: Uint8Array): {
-  cells: Map<string, BiffCell>; recalcAt?: number; recalcBuild?: number; read(key: string): number | undefined;
+  cells: Map<string, BiffCell>; recalcAt?: number; recalcBuild?: number; sst?: SstChain; read(key: string): number | undefined;
 } {
   const view = new DataView(stream.buffer, stream.byteOffset, stream.byteLength);
   const sheetAt = new Map<number, string>();
   const cells = new Map<string, BiffCell>();
   let recalcAt: number | undefined;
+  let sst: SstChain | undefined;
+  let inSst = false;
   let current: string | null = null;
   let first = true;
 
@@ -85,6 +101,8 @@ export function indexBiff(stream: Uint8Array): {
     const length = view.getUint16(at + 2, true);
     const body = at + 4;
     if (body + length > stream.length) break;
+    if (inSst && id !== RT.CONTINUE) { sst!.end = at; inSst = false; }
+    if (inSst) sst!.lastAt = at;
     if (first) {
       if (id !== RT.BOF || view.getUint16(body, true) !== 0x0600) throw new Error('엑셀 97–2003(BIFF8) 형식의 xls 만 고칠 수 있습니다.');
       first = false;
@@ -100,6 +118,13 @@ export function indexBiff(stream: Uint8Array): {
         break;
       }
       case RT.RECALCID: recalcAt = body + 4; break;
+      case RT.SST: sst = { at, lastAt: at, end: body + length, unique: view.getUint32(body + 4, true) }; inSst = true; break;
+      case RT.LABELSST: case RT.LABEL: {
+        if (!current) break;
+        const key = `${current}!${addressOf(view.getUint16(body, true), view.getUint16(body + 2, true))}`;
+        cells.set(key, id === RT.LABELSST ? { kind: 'sst', at: body + 6 } : { kind: 'label', at: body + 6 });
+        break;
+      }
       case RT.BOF: current = view.getUint16(body + 2, true) === 0x0010 ? sheetAt.get(at) ?? null : null; break;
       case RT.EOF: current = null; break;
       case RT.NUMBER: case RT.RK: case RT.FORMULA: {
@@ -129,9 +154,10 @@ export function indexBiff(stream: Uint8Array): {
 
   return {
     cells, ...(recalcAt === undefined ? {} : { recalcAt, recalcBuild: view.getUint32(recalcAt, true) }),
+    ...(sst ? { sst } : {}),
     read(key) {
       const cell = cells.get(key);
-      if (!cell) return undefined;
+      if (!cell || cell.kind === 'sst' || cell.kind === 'label') return undefined;
       if (cell.kind === 'rk') return decodeRk(view.getUint32(cell.at, true));
       if (cell.kind === 'formula-text') return undefined;
       return view.getFloat64(cell.at, true);
@@ -151,11 +177,15 @@ const word = (x: number, size: 2 | 4): Uint8Array => {
 };
 
 /** 스트림 안에서 덮어쓸 자리와 바이트를 돌려준다. 스트림 자체는 건드리지 않는다. */
-export function patchBiff(stream: Uint8Array, requests: XlsWrite[]): { writes: Array<{ at: number; bytes: Uint8Array }>; problems: XlsProblem[] } {
+export function patchBiff(stream: Uint8Array, requests: XlsWrite[]): {
+  writes: Array<{ at: number; bytes: Uint8Array }>; problems: XlsProblem[]; strings: string[];
+} {
   const index = indexBiff(stream);
   const view = new DataView(stream.buffer, stream.byteOffset, stream.byteLength);
   const writes: Array<{ at: number; bytes: Uint8Array }> = [];
   const problems: XlsProblem[] = [];
+  /** SST 끝에 붙일 새 글자. 칸에는 (기존 개수 + 순번) 을 미리 적어 둔다. */
+  const strings: string[] = [];
   const recalcOnOpen = (cell: BiffCell): void => {
     writes.push({ at: cell.flagsAt!, bytes: word(view.getUint16(cell.flagsAt!, true) | 1, 2) });
   };
@@ -164,7 +194,16 @@ export function patchBiff(stream: Uint8Array, requests: XlsWrite[]): { writes: A
     const cell = index.cells.get(`${request.sheet}!${request.address}`);
     const fail = (reason: string): void => { problems.push({ sheet: request.sheet, address: request.address, reason }); };
     const value = request.value;
-    if (!cell) { fail('숫자가 든 칸이 아니라 고칠 수 없습니다(빈 칸·글자 칸).'); continue; }
+    if (!cell) { fail('빈 칸이라 고칠 수 없습니다.'); continue; }
+    if (cell.kind === 'label') { fail('이 글자 칸은 공유 문자열을 쓰지 않는 옛 꼴이라 고칠 수 없습니다.'); continue; }
+    if (cell.kind === 'sst') {
+      if (typeof value !== 'string') { fail('글자 칸에는 글자만 넣을 수 있습니다.'); continue; }
+      if (!index.sst) { fail('공유 문자열 표를 찾지 못해 글자를 바꿀 수 없습니다.'); continue; }
+      if (value.length > MAX_TEXT) { fail(`글자는 한 칸에 ${MAX_TEXT}자까지 넣을 수 있습니다.`); continue; }
+      writes.push({ at: cell.at, bytes: word(index.sst.unique + strings.length, 4) });
+      strings.push(value);
+      continue;
+    }
     if (cell.kind === 'number' || cell.kind === 'rk') {
       if (typeof value !== 'number') { fail('숫자 칸에는 숫자만 넣을 수 있습니다.'); continue; }
       if (cell.kind === 'number') { writes.push({ at: cell.at, bytes: float(value) }); continue; }
@@ -189,7 +228,59 @@ export function patchBiff(stream: Uint8Array, requests: XlsWrite[]): { writes: A
     }
   }
   if (writes.length && index.recalcAt !== undefined) writes.push({ at: index.recalcAt, bytes: word(0, 4) });
-  return { writes, problems };
+  return { writes, problems, strings };
+}
+
+/** XLUnicodeRichExtendedString — 늘 2바이트 글자(fHighByte)로 쓴다. 한글이 섞이기 때문이다. */
+function encodeString(text: string): Uint8Array {
+  const out = new Uint8Array(3 + text.length * 2);
+  const view = new DataView(out.buffer);
+  view.setUint16(0, text.length, true);
+  out[2] = 0x01;
+  for (let i = 0; i < text.length; i++) view.setUint16(3 + i * 2, text.charCodeAt(i), true);
+  return out;
+}
+
+/**
+ * SST 사슬 끝에 글자를 붙인 새 스트림. 마지막 기록에 자리가 있으면 거기 잇고, 없으면
+ * CONTINUE 기록을 새로 단다(글자 하나는 쪼개지 않는다). 그 뒤로 밀린 만큼 시트 시작
+ * 위치(BOUNDSHEET)와 행 색인(INDEX)의 절대 위치를 고친다.
+ */
+export function growSst(stream: Uint8Array, strings: string[]): Uint8Array {
+  if (!strings.length) return stream;
+  const sst = indexBiff(stream).sst;
+  if (!sst) throw new Error('공유 문자열 표가 없습니다.');
+  const view = new DataView(stream.buffer, stream.byteOffset, stream.byteLength);
+  const records: Array<{ id: number; body: number[] }> = [];
+  let last = { id: view.getUint16(sst.lastAt, true), body: [...stream.subarray(sst.lastAt + 4, sst.end)] };
+  for (const text of strings) {
+    const bytes = encodeString(text);
+    if (last.body.length + bytes.length > MAX_RECORD) { records.push(last); last = { id: RT.CONTINUE, body: [] }; }
+    last.body.push(...bytes);
+  }
+  records.push(last);
+  const tail = records.flatMap(r => [r.id & 0xff, r.id >> 8, r.body.length & 0xff, r.body.length >> 8, ...r.body]);
+  const grown = new Uint8Array(sst.lastAt + tail.length + (stream.length - sst.end));
+  grown.set(stream.subarray(0, sst.lastAt), 0);
+  grown.set(tail, sst.lastAt);
+  grown.set(stream.subarray(sst.end), sst.lastAt + tail.length);
+  const delta = grown.length - stream.length;
+
+  const out = new DataView(grown.buffer);
+  out.setUint32(sst.at + 4 + 4, sst.unique + strings.length, true);
+  const shift = (at: number): void => { const v = out.getUint32(at, true); if (v >= sst.end) out.setUint32(at, v + delta, true); };
+  for (let at = 0; at + 4 <= grown.length;) {
+    const id = out.getUint16(at, true);
+    const length = out.getUint16(at + 2, true);
+    const body = at + 4;
+    if (id === RT.BOUNDSHEET) shift(body);
+    if (id === RT.INDEX) {
+      shift(body + 12);
+      for (let q = body + 16; q + 4 <= body + length; q += 4) shift(q);
+    }
+    at = body + length;
+  }
+  return grown;
 }
 
 // --- 복합 문서(CFB) 안의 Workbook 스트림 -------------------------------------------
@@ -279,8 +370,21 @@ export function patchXls(file: Uint8Array, requests: XlsWrite[]): { bytes: Uint8
   }
   const stream = new Uint8Array(workbook.size);
   for (let i = 0; i < workbook.size; i++) stream[i] = file[workbook.offsetOf(i)]!;
-  const { writes, problems } = patchBiff(stream, requests);
-  const bytes = file.slice();
-  for (const write of writes) write.bytes.forEach((b, i) => { bytes[workbook.offsetOf(write.at + i)] = b; });
-  return { bytes, problems };
+  const { writes, problems, strings } = patchBiff(stream, requests);
+  if (!strings.length) {
+    // 숫자만 고쳤다 — 파일 안 제자리에 덮어쓴다. 나머지 바이트는 하나도 바뀌지 않는다.
+    const bytes = file.slice();
+    for (const write of writes) write.bytes.forEach((b, i) => { bytes[workbook.offsetOf(write.at + i)] = b; });
+    return { bytes, problems };
+  }
+  // 글자를 붙였다 — 스트림이 길어지므로 복합 문서를 다시 묶는다. 다른 스트림의 내용은 그대로다.
+  for (const write of writes) stream.set(write.bytes, write.at);
+  const grown = growSst(stream, strings);
+  const container = CFB.read(file, { type: 'array' });
+  const entry = CFB.find(container, workbook.name);
+  if (!entry) throw new Error('xls 안에서 통합 문서를 찾지 못했습니다.');
+  entry.content = grown as unknown as typeof entry.content;
+  entry.size = grown.length;
+  const written = CFB.write(container, { type: 'array', fileType: 'cfb' }) as ArrayBuffer | number[];
+  return { bytes: new Uint8Array(written), problems };
 }

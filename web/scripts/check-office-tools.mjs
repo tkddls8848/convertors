@@ -9,7 +9,7 @@
 // Playwright 가 기대하는 판의 Chromium 이 없으면 `CHROMIUM_PATH` 로 있는 것을 가리킨다.
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const require = createRequire(new URL('../package.json', import.meta.url));
 const browserName = process.env.CHECK_BROWSER ?? 'chromium';
@@ -301,6 +301,19 @@ try {
   assert.equal(XLSX.read(xlsOut).Sheets['견적'].B3.v, 5);
   assert.match(await tool.locator('.sheet-edit-outputs a').first().getAttribute('download'), /견적서-고침\.xls$/);
 
+  // 엑셀이 만든 진짜 견적서(.xls) — 글자 칸(품목명)과 숫자 칸을 함께 고친다. 글자는 공유 문자열 끝에 붙는다.
+  const excelQuote = await readFile(fileURLToPath(new URL('../src/testing/fixtures/quote-excel.xls', import.meta.url)));
+  await tool.locator('#sheet-edit-file').setInputFiles({ name: '견적서.xls', mimeType: 'application/vnd.ms-excel', buffer: excelQuote });
+  await tool.locator('.sheet-cell[data-address="A6"]').click();
+  await tool.getByLabel('A6 새 값').fill('만년필');
+  await tool.locator('.sheet-cell[data-address="C6"]').click();
+  await tool.getByLabel('C6 새 값').fill('2000');
+  await tool.getByLabel('C6 새 값').press('Enter');
+  assert.match(await tool.locator('.sheet-edit-changes').innerText(), /A6: 볼펜 → 만년필/);
+  await tool.getByRole('button', { name: '고친 파일 저장', exact: true }).click();
+  const textEdited = XLSX.read(await bytesOf(tool.locator('.sheet-edit-outputs a').first()), { cellFormula: true }).Sheets['견적서'];
+  assert.deepEqual([textEdited.A6.v, textEdited.A7.v, textEdited.C6.v, textEdited.D6.v, textEdited.D11.v], ['만년필', '공책', 2000, 6000, 138600]);
+
   // --- PDF 도구 ---
   const sample = await PDFDocument.create();
   sample.setTitle('비밀 문서'); sample.setAuthor('홍길동');
@@ -372,5 +385,5 @@ try {
   }
   await page.screenshot({ path: fileURLToPath(new URL('office-mobile.png', out)), fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: 16 office tools open with unique ids; money, VAT, bizno, dates, count, diff, redact, hash, rename→ZIP, CSV merge, QR (SVG/PNG), image→JPEG, image exact 431×620 under a KB budget, sheet edit (xlsx recalc + xls in place), PDF meta clear, stamp, 2-up, signature stamp, Korean watermark (font embed + read-back); mobile width.');
+  console.log('PASS: 16 office tools open with unique ids; money, VAT, bizno, dates, count, diff, redact, hash, rename→ZIP, CSV merge, QR (SVG/PNG), image→JPEG, image exact 431×620 under a KB budget, sheet edit (xlsx recalc + xls in place + Excel-made xls text/number), PDF meta clear, stamp, 2-up, signature stamp, Korean watermark (font embed + read-back); mobile width.');
 } finally { await browser.close(); }

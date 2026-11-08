@@ -16,7 +16,7 @@ import {
 
 export interface CellModel { value: CellValue; formula?: string }
 export interface SheetModel { name: string; rows: number; cols: number; cells: Map<string, CellModel> }
-export interface Edit { sheet: string; address: string; value: number }
+export interface Edit { sheet: string; address: string; value: number | string }
 export interface Change { sheet: string; address: string; before: CellValue; after: CellValue; formula: boolean }
 export interface Problem { sheet: string; address: string; reason: string }
 

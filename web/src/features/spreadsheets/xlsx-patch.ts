@@ -43,7 +43,14 @@ function patchCell(xml: string, address: string, value: XlsValue): string | { re
   const type = /\bt="([^"]*)"/.exec(attributes)?.[1] ?? 'n';
   const formula = /<f\b/.test(inner);
   if (!formula) {
-    if (type !== 'n' || !/<v>/.test(inner)) return { reason: '숫자가 든 칸이 아니라 고칠 수 없습니다(빈 칸·글자 칸).' };
+    const text = type === 's' || type === 'str' || type === 'inlineStr';
+    if (text) {
+      if (typeof value !== 'string') return { reason: '글자 칸에는 글자만 넣을 수 있습니다.' };
+      // 공유 문자열 표는 건드리지 않고 그 칸 안에 글자를 넣는다(inlineStr). 스타일(s)은 그대로다.
+      const rebuilt = `<c${attributes.replace(/\s*\bt="[^"]*"/, '')} t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
+      return xml.slice(0, match.index) + rebuilt + xml.slice(match.index + match[0].length);
+    }
+    if (type !== 'n' || !/<v>/.test(inner)) return { reason: '빈 칸이라 고칠 수 없습니다.' };
     if (typeof value !== 'number') return { reason: '숫자 칸에는 숫자만 넣을 수 있습니다.' };
     return xml.slice(0, match.index) + match[0].replace(/<v>[^<]*<\/v>/, `<v>${value}</v>`) + xml.slice(match.index + match[0].length);
   }

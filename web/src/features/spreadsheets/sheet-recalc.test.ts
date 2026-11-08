@@ -19,7 +19,7 @@ function quote(): SheetModel[] {
   ws['D4'] = { t: 'n', v: 9500, f: 'SUM(D2:D3)' };
   ws['D5'] = { t: 'n', v: 950, f: 'ROUNDDOWN(D4*0.1,-1)' };
   ws['D6'] = { t: 'n', v: 10450, f: 'D4+D5' };
-  ws['B7'] = { t: 'n', v: 1, f: 'COUNT(A1:A2)' };             // 고친 칸과 무관한 수식
+  ws['B7'] = { t: 'n', v: 0, f: 'COUNT(A1:A2)' };             // 숫자 칸과 무관한 수식(글자 칸을 센다)
   ws['!ref'] = 'A1:D7';
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '견적');
@@ -66,5 +66,16 @@ describe('고친 칸에 딸린 수식만 다시 계산한다', () => {
     sheets.push({ name: '요약', rows: 1, cols: 1, cells: new Map([['A1', { value: 10450, formula: '견적!D6' }]]) });
     const { changes } = recalc(sheets, [{ sheet: '견적', address: 'C2', value: 2000 }]);
     expect(changes.at(-1)).toEqual({ sheet: '요약', address: 'A1', before: 10450, after: 12100, formula: true });
+  });
+
+  it('글자 칸을 고치면 그 글자를 잇는 수식도 따라간다', () => {
+    const sheets = quote();
+    sheets[0]!.cells.set('A8', { value: '볼펜 외 1건', formula: 'A2&" 외 1건"' });
+    const { changes, problems } = recalc(sheets, [{ sheet: '견적', address: 'A2', value: '만년필' }]);
+    expect(problems).toEqual([]);
+    expect(changes).toEqual([
+      { sheet: '견적', address: 'A2', before: '볼펜', after: '만년필', formula: false },
+      { sheet: '견적', address: 'A8', before: '볼펜 외 1건', after: '만년필 외 1건', formula: true },
+    ]);
   });
 });

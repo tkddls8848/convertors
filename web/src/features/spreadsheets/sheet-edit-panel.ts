@@ -25,11 +25,11 @@ const show = (value: CellValue): string =>
 export function sheetEditTool(): HTMLElement {
   const tool = toolSection('conv-sheet-edit', `
     <h2>엑셀 편집</h2>
-    <p class="conv-note">견적서·명세서(.xls·.xlsx)의 <strong>숫자 칸</strong>을 고치면 합계·부가세 같은 수식 칸도 다시 계산해 넣습니다.
+    <p class="conv-note">견적서·명세서(.xls·.xlsx)의 <strong>숫자·글자 칸</strong>을 고치면 합계·부가세 같은 수식 칸도 다시 계산해 넣습니다.
       양식(글꼴·테두리·병합·인쇄 설정)은 원본 그대로 두고 고친 칸의 값만 바꿉니다. 파일은 이 기기를 벗어나지 않습니다. 20MB까지.</p>
     <details class="conv-more"><summary>안 되는 것</summary>
       <ul class="conv-notes">
-        <li>글자 칸, 빈 칸에 숫자 넣기, 행·열 더하기, 서식 바꾸기.</li>
+        <li>빈 칸에 값 넣기, 숫자 칸을 글자로(또는 그 반대로) 바꾸기, 행·열 더하기, 서식 바꾸기.</li>
         <li>계산할 줄 모르는 수식(한글 금액 NUMBERSTRING 등)은 고치지 않고 알립니다. 엑셀에서 열면 다시 계산되도록 표시하지만, 휴대폰 미리보기에는 옛 값이 보일 수 있습니다.</li>
         <li>.xls 의 숫자 칸 일부는 파일 구조상 정수 ±5억·소수 둘째 자리까지만 담깁니다.</li>
         <li>암호가 걸린 파일, 엑셀 95 이전 형식.</li>
@@ -50,7 +50,7 @@ export function sheetEditTool(): HTMLElement {
       <button type="button" class="conv-download" data-action="save" disabled>고친 파일 저장</button>
       <button type="button" data-action="undo" disabled>모두 되돌리기</button>
     </div>
-    <p class="conv-note sheet-edit-hint" hidden>밑줄 친 숫자 칸을 눌러 고치세요. 수식 칸은 고친 칸을 따라 저절로 바뀝니다.</p>
+    <p class="conv-note sheet-edit-hint" hidden>밑줄 친 칸(숫자·글자)을 눌러 고치세요. 수식 칸은 고친 칸을 따라 저절로 바뀝니다.</p>
     <div class="sheet-edit-grid-wrap" hidden><table class="sheet-edit-grid"></table></div>
   `);
 
@@ -70,7 +70,7 @@ export function sheetEditTool(): HTMLElement {
   let file: { name: string; bytes: Uint8Array; xls: boolean } | null = null;
   let workbook: XLSX.WorkBook | null = null;
   let model: SheetModel[] = [];
-  const edits = new Map<string, number>(); // `${sheet}!${address}` → 새 값
+  const edits = new Map<string, number | string>(); // `${sheet}!${address}` → 새 값
   let result: { changes: Change[]; problems: Problem[] } = { changes: [], problems: [] };
 
   const keyOf = (sheet: string, address: string): string => `${sheet}!${address}`;
@@ -163,7 +163,7 @@ export function sheetEditTool(): HTMLElement {
         const { text, state } = textOf(sheetName, address, cell);
         if (state) td.dataset['state'] = state;
         if (cell?.f) td.classList.add('is-formula');
-        if (cell && cell.t === 'n' && !cell.f) {
+        if (cell && (cell.t === 'n' || cell.t === 's') && !cell.f) {
           const button = document.createElement('button');
           button.type = 'button';
           button.className = 'sheet-cell';
@@ -183,10 +183,11 @@ export function sheetEditTool(): HTMLElement {
   };
 
   const startEdit = (td: HTMLTableCellElement, sheetName: string, address: string, cell: XLSX.CellObject): void => {
-    const current = edits.get(keyOf(sheetName, address)) ?? Number(cell.v);
+    const numeric = cell.t === 'n';
+    const current = edits.get(keyOf(sheetName, address)) ?? (numeric ? Number(cell.v) : String(cell.v ?? ''));
     const field = document.createElement('input');
     field.type = 'text';
-    field.inputMode = 'decimal';
+    field.inputMode = numeric ? 'decimal' : 'text';
     field.className = 'sheet-cell-input';
     field.value = String(current);
     field.setAttribute('aria-label', `${address} 새 값`);
@@ -195,10 +196,13 @@ export function sheetEditTool(): HTMLElement {
       if (finished) return;
       finished = true;
       if (keep) {
-        const text = field.value.replace(/[,\s원]/g, '');
-        const value = Number(text);
-        if (text === '' || !Number.isFinite(value)) { say(`${address}: 숫자로 적어 주세요.`, 'error'); renderGrid(); return; }
-        const original = Number(cell.v);
+        let value: number | string = field.value;
+        if (numeric) {
+          const text = field.value.replace(/[,\s원]/g, '');
+          value = Number(text);
+          if (text === '' || !Number.isFinite(value)) { say(`${address}: 숫자로 적어 주세요.`, 'error'); renderGrid(); return; }
+        }
+        const original = numeric ? Number(cell.v) : String(cell.v ?? '');
         if (value === original) edits.delete(keyOf(sheetName, address)); else edits.set(keyOf(sheetName, address), value);
         recompute();
         say(edits.size ? `고친 칸 ${edits.size}개 · 바뀌는 수식 칸 ${result.changes.filter(c => c.formula).length}개. 다 고쳤으면 "고친 파일 저장"을 누르세요.` : '');
@@ -240,7 +244,7 @@ export function sheetEditTool(): HTMLElement {
       gridWrap.hidden = false;
       renderGrid();
       const formulas = model.reduce((n, sheet) => n + [...sheet.cells.values()].filter(c => c.formula).length, 0);
-      say(`${chosen.name} · 시트 ${workbook.SheetNames.length}개 · 수식 칸 ${formulas}개. 숫자 칸을 눌러 고치세요.`, 'ok');
+      say(`${chosen.name} · 시트 ${workbook.SheetNames.length}개 · 수식 칸 ${formulas}개. 밑줄 친 칸을 눌러 고치세요.`, 'ok');
     } catch (error) {
       workbook = null; file = null;
       bar.hidden = true; hint.hidden = true; gridWrap.hidden = true;

@@ -733,3 +733,4 @@
 .sheet-edit-grid .sheet-cell-input { width: 100%; min-width: 6rem; padding: 0.3rem; font: inherit; text-align: right; color: var(--text); background: var(--bg); border: 2px solid var(--accent); border-radius: 4px; }
 .sheet-edit-changes { margin: 0; padding-left: 1.2rem; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
 .sheet-edit-problems li { color: var(--danger); }
+.sheet-edit-grid td:not(.num) .sheet-cell-input { min-width: 10rem; text-align: left; }

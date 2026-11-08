@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
 
@@ -139,5 +140,57 @@ describe('xls 파일 전체 — 나머지 바이트는 그대로', () => {
 
   it('xls 가 아닌 파일은 거절한다', () => {
     expect(() => patchXls(new TextEncoder().encode('hello'), [])).toThrow(/xls/);
+  });
+});
+
+describe('엑셀이 만든 견적서(.xls) — web/scripts/make-quote-xls.ps1 로 만든 진짜 파일', () => {
+  const fixture = (): Uint8Array => new Uint8Array(readFileSync(new URL('../../testing/fixtures/quote-excel.xls', import.meta.url)));
+  const sheetOf = (bytes: Uint8Array): XLSX.WorkSheet => XLSX.read(bytes, { cellFormula: true }).Sheets['견적서']!;
+
+  it('숫자 칸은 제자리에서 바뀌고 파일 크기는 그대로다', () => {
+    const before = fixture();
+    const { bytes, problems } = patchXls(before, [{ sheet: '견적서', address: 'B6', value: 4 }]);
+    expect(problems).toEqual([]);
+    expect(bytes.length).toBe(before.length);
+    expect(sheetOf(bytes)['B6']!.v).toBe(4);
+  });
+
+  it('글자 칸을 고친다 — 새 글자는 공유 문자열 끝에 붙이고, 나머지 글자·수식·병합은 그대로다', () => {
+    const { bytes, problems } = patchXls(fixture(), [
+      { sheet: '견적서', address: 'A6', value: '만년필' },
+      { sheet: '견적서', address: 'A3', value: '다라상사 귀하' },
+      { sheet: '견적서', address: 'C6', value: 2000 },
+    ]);
+    expect(problems).toEqual([]);
+    const sheet = sheetOf(bytes);
+    expect(sheet['A6']!.v).toBe('만년필');
+    expect(sheet['A3']!.v).toBe('다라상사 귀하');
+    expect(sheet['C6']!.v).toBe(2000);
+    expect(sheet['A7']!.v).toBe('공책');
+    expect(sheet['A1']!.v).toBe('견 적 서');
+    expect(sheet['A14']!.v).toBe('납기: 발주 후 7일');
+    expect(sheet['D9']!.f).toBe('SUM(D6:D8)');
+    expect(sheet['!merges']).toEqual([{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }]);
+  });
+
+  it('긴 글자가 많아 공유 문자열 기록(8KB)을 넘겨도 모두 읽힌다', () => {
+    const long = (ch: string): string => ch.repeat(3000);
+    const { bytes, problems } = patchXls(fixture(), [
+      { sheet: '견적서', address: 'A6', value: long('가') },
+      { sheet: '견적서', address: 'A7', value: long('나') },
+      { sheet: '견적서', address: 'A8', value: long('다') },
+    ]);
+    expect(problems).toEqual([]);
+    const sheet = sheetOf(bytes);
+    expect([sheet['A6']!.v, sheet['A7']!.v, sheet['A8']!.v]).toEqual([long('가'), long('나'), long('다')]);
+    expect(sheet['A3']!.v).toBe('가나상사 귀하');
+  });
+
+  it('글자 칸에 숫자, 숫자 칸에 글자는 넣지 않는다', () => {
+    const { problems } = patchXls(fixture(), [
+      { sheet: '견적서', address: 'A6', value: 5 },
+      { sheet: '견적서', address: 'B6', value: '셋' },
+    ]);
+    expect(problems.map(p => p.address)).toEqual(['A6', 'B6']);
   });
 });
