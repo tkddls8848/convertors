@@ -19,6 +19,7 @@ const PLACED = [
   'document', 'spreadsheet', 'hwpx-markdown', 'text-hwpx', 'encoding', 'redact', 'text-diff', 'bizno', 'vat',
   'hash', 'qr', 'rename', 'zip', 'image-convert', 'images-pdf', 'sheet-merge',
   'pdf-meta', 'pdf-nup', 'pdf-sign', 'pdf-stamp', 'pdf-edit', 'pdf',
+  'sheet-edit',
 ];
 
 /** 내려받기 링크 묶음 대신 결과 상자 안의 단추로 내려받는 도구. */

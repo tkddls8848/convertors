@@ -17,6 +17,7 @@ assert.ok(['chromium', 'firefox', 'webkit'].includes(browserName), `지원하지
 const browserType = require('playwright')[browserName];
 const { PDFDocument, rgb } = require('pdf-lib');
 const { unzipSync, strFromU8 } = require('fflate');
+const XLSX = require('xlsx');
 const base = process.env.HWPX_TEST_URL ?? 'http://127.0.0.1:18574';
 const out = new URL('../../.cache/office-tools/', import.meta.url);
 await mkdir(out, { recursive: true });
@@ -28,6 +29,7 @@ const TOOLS = {
   'pdf-nup': 'PDF 모아찍기·빈 쪽 빼기',
   'pdf-meta': 'PDF 문서 정보 보기·지우기',
   'image-convert': '이미지 형식·크기 바꾸기',
+  'sheet-edit': '엑셀 숫자 고치기',
   'text-diff': '텍스트 비교',
   'text-count': '글자 수 세기',
   redact: '개인정보 가리기',
@@ -257,6 +259,43 @@ try {
   assert.ok(usedQuality < 85 && usedQuality >= 10, `화질을 낮춰 찾지 않았습니다: ${usedQuality}`);
   assert.match(await tool.locator('.image-convert-table tbody').textContent(), /1200×900 → 431×620 \(비율이 달라져 세로로 \d+% 늘어납니다\)/);
 
+  // 엑셀 숫자 고치기 — 단가를 고치면 금액·합계·부가세가 따라 바뀌고, 저장한 파일에도 그대로 들어간다.
+  const quoteSheet = () => {
+    const ws = XLSX.utils.aoa_to_sheet([['품목', '수량', '단가', '금액'], ['볼펜', 3, 1500, null], ['공책', 2, 2500, null], ['합계', null, null, null], ['부가세', null, null, null]]);
+    ws.D2 = { t: 'n', v: 4500, f: 'B2*C2' }; ws.D3 = { t: 'n', v: 5000, f: 'B3*C3' };
+    ws.D4 = { t: 'n', v: 9500, f: 'SUM(D2:D3)' }; ws.D5 = { t: 'n', v: 950, f: 'ROUNDDOWN(D4*0.1,-1)' };
+    ws['!ref'] = 'A1:D5';
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '견적');
+    return wb;
+  };
+  tool = await choose('sheet-edit');
+  await tool.locator('#sheet-edit-file').setInputFiles({ name: '견적서.xlsx', mimeType: 'application/octet-stream', buffer: Buffer.from(XLSX.write(quoteSheet(), { bookType: 'xlsx', type: 'buffer' })) });
+  await tool.locator('.sheet-cell[data-address="C2"]').click();
+  await tool.getByLabel('C2 새 값').fill('2000');
+  // 고치는 중에 다른 칸을 누르면 앞 칸이 반영되고 누른 칸이 바로 열린다.
+  await tool.locator('.sheet-cell[data-address="C3"]').click();
+  await tool.getByLabel('C3 새 값').waitFor();
+  await tool.getByLabel('C3 새 값').press('Escape');
+  assert.equal((await tool.locator('.sheet-edit-grid td', { hasText: '6000' }).count()) >= 1, true, '금액 칸이 다시 계산되지 않았습니다.');
+  assert.match(await tool.locator('.sheet-edit-changes').innerText(), /D5 \(수식\): 950 → 1,100/);
+  await tool.getByRole('button', { name: '고친 파일 저장', exact: true }).click();
+  const editedXlsx = XLSX.read(await bytesOf(tool.locator('.sheet-edit-outputs a').first()), { cellFormula: true }).Sheets['견적'];
+  assert.equal(editedXlsx.C2.v, 2000);
+  assert.deepEqual([editedXlsx.D2.v, editedXlsx.D4.v, editedXlsx.D5.v], [6000, 11000, 1100]);
+  assert.equal(editedXlsx.D5.f, 'ROUNDDOWN(D4*0.1,-1)');
+
+  // .xls — 숫자 칸만 제자리에서 바꾸고 파일 크기는 그대로.
+  const xlsBytes = Buffer.from(XLSX.write(quoteSheet(), { bookType: 'xls', type: 'buffer' }));
+  await tool.locator('#sheet-edit-file').setInputFiles({ name: '견적서.xls', mimeType: 'application/vnd.ms-excel', buffer: xlsBytes });
+  await tool.locator('.sheet-cell[data-address="B3"]').click();
+  await tool.getByLabel('B3 새 값').fill('5');
+  await tool.getByLabel('B3 새 값').press('Enter');
+  await tool.getByRole('button', { name: '고친 파일 저장', exact: true }).click();
+  const xlsOut = await bytesOf(tool.locator('.sheet-edit-outputs a').first());
+  assert.equal(xlsOut.length, xlsBytes.length, 'xls 크기가 바뀌었습니다.');
+  assert.equal(XLSX.read(xlsOut).Sheets['견적'].B3.v, 5);
+  assert.match(await tool.locator('.sheet-edit-outputs a').first().getAttribute('download'), /견적서-고침\.xls$/);
+
   // --- PDF 도구 ---
   const sample = await PDFDocument.create();
   sample.setTitle('비밀 문서'); sample.setAuthor('홍길동');
@@ -322,11 +361,11 @@ try {
   assert.equal(signed.getPageCount(), 4);
 
   await page.setViewportSize({ width: 375, height: 812 });
-  for (const id of ['vat', 'date', 'qr', 'rename']) {
+  for (const id of ['vat', 'date', 'qr', 'rename', 'sheet-edit']) {
     await choose(id);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${id}: 가로로 넘친다`);
   }
   await page.screenshot({ path: fileURLToPath(new URL('office-mobile.png', out)), fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: 16 office tools open with unique ids; money, VAT, bizno, dates, count, diff, redact, hash, rename→ZIP, CSV merge, QR (SVG/PNG), image→JPEG, image exact 431×620 under a KB budget, PDF meta clear, stamp, 2-up, signature stamp, Korean watermark (font embed + read-back); mobile width.');
+  console.log('PASS: 16 office tools open with unique ids; money, VAT, bizno, dates, count, diff, redact, hash, rename→ZIP, CSV merge, QR (SVG/PNG), image→JPEG, image exact 431×620 under a KB budget, sheet edit (xlsx recalc + xls in place), PDF meta clear, stamp, 2-up, signature stamp, Korean watermark (font embed + read-back); mobile width.');
 } finally { await browser.close(); }

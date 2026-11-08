@@ -61,7 +61,7 @@ try {
   await page.goto(base);
   await page.locator('.conv-choice').last().waitFor();
   const ids = await page.locator('.conv-choice').evaluateAll(nodes => nodes.map(node => node.dataset.choice));
-  check(ids.length === 25, '도구 수', ids.length);
+  check(ids.length === 26, '도구 수', ids.length);
   const reached = new Set();
   for (let i = 0; i < 100 && reached.size < ids.length; i++) {
     await page.keyboard.press('Tab');

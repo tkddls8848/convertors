@@ -49,6 +49,7 @@ export const GROUPS: Group[] = [
   {
     title: '사무 계산',
     choices: [
+      { id: 'sheet-edit', title: '엑셀 숫자 고치기', summary: '.xls·.xlsx 견적서의 숫자를 고치면 합계까지 다시 계산, 양식은 그대로', build: () => import('../features/spreadsheets/sheet-edit-panel').then(m => m.sheetEditTool()) },
       { id: 'money', title: '금액 한글 표기', summary: '12,345,000 → 일금 일천이백삼십사만오천원정', build: () => import('../features/office/money-panel').then(m => m.moneyTool()) },
       { id: 'vat', title: '부가세 계산', summary: '공급가액·세액·합계를 어느 쪽에서든', build: () => import('../features/office/vat-panel').then(m => m.vatTool()) },
       { id: 'date', title: '날짜·영업일 계산', summary: 'D-day, N일 뒤, 두 날짜 사이의 평일 수', build: () => import('../features/office/date-panel').then(m => m.dateTool()) },

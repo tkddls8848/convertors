@@ -682,3 +682,24 @@
   color: var(--muted);
   font-size: 0.85rem;
 }
+
+/* --- 엑셀 숫자 고치기 --------------------------------------------------------
+   시트를 표로 보이고 숫자 칸만 눌러 고친다. 휴대폰에서 손가락으로 누르기 쉽게 칸을
+   넉넉히 두고, 행·열 머리는 스크롤해도 붙어 있게 한다. 고친 칸과 따라 바뀐 수식 칸은
+   색으로 구별한다. */
+.sheet-edit-grid-wrap { max-height: 70vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.sheet-edit-grid { border-collapse: collapse; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.sheet-edit-grid th, .sheet-edit-grid td { min-width: 3.5rem; padding: 0.3rem 0.5rem; border: 1px solid var(--line); white-space: nowrap; text-align: left; }
+.sheet-edit-grid td.num { text-align: right; }
+.sheet-edit-grid thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); color: var(--muted); font-weight: 500; text-align: center; }
+.sheet-edit-grid tbody th { position: sticky; left: 0; z-index: 1; background: var(--surface); color: var(--muted); font-weight: 500; text-align: right; }
+.sheet-edit-grid td.is-formula { color: var(--muted); }
+.sheet-edit-grid td[data-state='edited'] { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--text); }
+.sheet-edit-grid td[data-state='changed'] { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--text); font-weight: 600; }
+.sheet-edit-grid .sheet-cell {
+  width: 100%; min-height: 2rem; padding: 0; text-align: inherit; font: inherit; color: var(--accent);
+  background: none; border: 0; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer;
+}
+.sheet-edit-grid .sheet-cell-input { width: 100%; min-width: 6rem; padding: 0.3rem; font: inherit; text-align: right; color: var(--text); background: var(--bg); border: 2px solid var(--accent); border-radius: 4px; }
+.sheet-edit-changes { margin: 0; padding-left: 1.2rem; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.sheet-edit-problems li { color: var(--danger); }

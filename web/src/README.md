@@ -7,7 +7,7 @@
 |---|---|
 | `app/` | 도구 선택·캐시, 공통 스타일과 페이지 틀 |
 | `features/documents/` | 문서·전자책, HWPX, Markdown, 형식 선택 UI·카탈로그 |
-| `features/spreadsheets/` | 시트 변환·합치기·나누기, SheetJS 워커 |
+| `features/spreadsheets/` | 시트 변환·합치기·나누기, SheetJS 워커, 엑셀 숫자 고치기(수식 다시 계산 `formula.ts`·`sheet-recalc.ts`, 제자리 저장 `xls-patch.ts`·`xlsx-patch.ts`) |
 | `features/pdf/` | PDF 편집·출력·렌더링·글꼴 |
 | `features/images/` | 이미지 변환, 이미지 → PDF |
 | `features/text/` | 인코딩·비교·글자 수·개인정보 가리기 |
