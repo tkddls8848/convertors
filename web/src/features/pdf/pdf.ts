@@ -2,7 +2,8 @@ import { PDFDocument, degrees, EncryptedPDFError } from 'pdf-lib';
 
 import { reason } from '../../shared/errors';
 
-export interface PdfSource { name: string; document: PDFDocument; size: number }
+/** `bytes` 는 읽은 원본 그대로다 — PDF 편집기가 쪽 썸네일을 PDF.js 로 그릴 때 쓴다. */
+export interface PdfSource { name: string; document: PDFDocument; size: number; bytes: Uint8Array }
 export interface PdfPageRef { source: PdfSource; index: number; rotation: number }
 export const MAX_PDF_BYTES = 64 * 1024 * 1024;
 export const MAX_PDF_PAGES = 1000;
@@ -13,7 +14,7 @@ export async function readPdf(bytes: Uint8Array, name: string): Promise<PdfSourc
     const document = await PDFDocument.load(bytes, { updateMetadata: false });
     if (!document.getPageCount()) throw new Error('쪽이 없는 PDF입니다.');
     if (document.getPageCount() > MAX_PDF_PAGES) throw new Error('PDF는 합계 1,000쪽까지 추가할 수 있습니다.');
-    return { name, document, size: bytes.length };
+    return { name, document, size: bytes.length, bytes };
   } catch (error) {
     if (error instanceof EncryptedPDFError) throw new Error('암호화된 PDF입니다. 암호와 보안을 해제한 사본을 추가해 주세요.');
     throw new Error(`PDF를 열지 못했습니다: ${reason(error)}`);

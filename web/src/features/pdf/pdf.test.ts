@@ -10,6 +10,14 @@ async function fixture(widths: number[]) {
 }
 
 describe('PDF 편집', () => {
+  it('읽은 원본 바이트를 쪽 미리보기용으로 들고 있는다', async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([200, 300]);
+    const bytes = await doc.save();
+    const source = await readPdf(bytes, 'a.pdf');
+    expect(source.bytes).toEqual(bytes);
+  });
+
   it('다른 원본을 병합하고 순서와 기존 회전을 저장 결과에 반영한다', async () => {
     const a = await fixture([200, 300]);
     const b = await fixture([500]);
