@@ -30,7 +30,7 @@ export function sheetEditTool(): HTMLElement {
     <details class="conv-more"><summary>안 되는 것</summary>
       <ul class="conv-notes">
         <li>빈 칸에 값 넣기, 숫자 칸을 글자로(또는 그 반대로) 바꾸기, 행·열 더하기, 서식 바꾸기.</li>
-        <li>계산할 줄 모르는 수식(한글 금액 NUMBERSTRING 등)은 고치지 않고 알립니다. 엑셀에서 열면 다시 계산되도록 표시하지만, 휴대폰 미리보기에는 옛 값이 보일 수 있습니다.</li>
+        <li>계산할 줄 모르는 수식은 고치지 않고 알립니다(합계·반올림·IF·한글 금액 NUMBERSTRING 등 견적서에 흔한 것은 계산합니다). 엑셀에서 열면 다시 계산되도록 표시하지만, 휴대폰 미리보기에는 옛 값이 보일 수 있습니다.</li>
         <li>.xls 의 숫자 칸 일부는 파일 구조상 정수 ±5억·소수 둘째 자리까지만 담깁니다.</li>
         <li>암호가 걸린 파일, 엑셀 95 이전 형식.</li>
       </ul>

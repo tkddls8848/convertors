@@ -8,8 +8,9 @@
  * 크기가 같아야 하므로 할 수 있는 것과 없는 것이 갈린다.
  *   - NUMBER(8바이트 실수) 칸: 어떤 숫자든 된다.
  *   - RK·MULRK(4바이트로 접은 숫자) 칸: 접을 수 있는 숫자만(정수 ±5억, 소수 둘째 자리 등).
- *   - 수식 칸의 계산값: 숫자·참거짓·오류는 8바이트 자리에 들어간다. **글자 결과**는 뒤따르는
- *     STRING 기록의 길이가 바뀌어 못 쓴다 — 그 칸은 "열 때 다시 계산" 표시를 하고 알린다.
+ *   - 수식 칸의 계산값: 숫자·참거짓·오류는 8바이트 자리에 들어간다. **글자 결과**(한글 금액
+ *     등)는 뒤따르는 STRING 기록에 든다. 길이가 바뀌므로 기록을 늘이거나 줄이고, 그 행 묶음의
+ *     행 색인(DBCELL)과 뒤쪽 절대 위치(INDEX·BOUNDSHEET)를 함께 고친다(`spliceBiff`).
  *   - 빈 칸·글자 칸에 숫자 넣기: 기록을 새로 끼워야 해서 못 한다.
  *   - 글자 칸(LABELSST): 칸은 공유 문자열 표(SST)의 번호만 든다. 새 글자를 SST 끝에 붙이고
  *     칸의 번호(4바이트)만 바꾼다. SST 가 길어지므로 그 뒤 내용이 밀린다 — 시트 시작
@@ -59,7 +60,10 @@ const RT = {
   BOF: 0x0809, EOF: 0x000a, FILEPASS: 0x002f, BOUNDSHEET: 0x0085, RECALCID: 0x01c1,
   NUMBER: 0x0203, RK: 0x027e, MULRK: 0x00bd, FORMULA: 0x0006,
   SST: 0x00fc, CONTINUE: 0x003c, LABELSST: 0x00fd, LABEL: 0x0204, INDEX: 0x020b,
+  STRING: 0x0207, SHRFMLA: 0x04bc, ARRAY: 0x0221, TABLE: 0x0236, ROW: 0x0208, DBCELL: 0x00d7,
 } as const;
+/** 행의 첫 칸이 될 수 있는 기록(DBCELL 이 가리키는 것). STRING·SHRFMLA 는 앞 수식에 딸린다. */
+const CELL_RECORDS = new Set([0x00fd, 0x0203, 0x027e, 0x00bd, 0x0006, 0x0201, 0x00be, 0x0205, 0x0204, 0x00d6]);
 /** BIFF8 기록 하나의 본문 최대 길이. */
 const MAX_RECORD = 8224;
 /** 한 칸에 넣을 글자 수 한도. 공유 문자열 하나가 기록 하나에 들어가야 한다. */
@@ -71,6 +75,10 @@ export interface BiffCell {
   at: number;
   /** 수식 칸의 grbit 자리. */
   flagsAt?: number;
+  /** 수식에 딸린 STRING 기록의 시작 자리(글자 결과일 때). */
+  stringAt?: number;
+  /** 수식 기록(과 딸린 SHRFMLA·ARRAY)이 끝난 자리 — STRING 을 새로 끼울 곳. */
+  insertAt?: number;
   alwaysCalc?: boolean;
 }
 
@@ -93,6 +101,7 @@ export function indexBiff(stream: Uint8Array): {
   let recalcAt: number | undefined;
   let sst: SstChain | undefined;
   let inSst = false;
+  let formula: BiffCell | null = null;
   let current: string | null = null;
   let first = true;
 
@@ -102,6 +111,11 @@ export function indexBiff(stream: Uint8Array): {
     const body = at + 4;
     if (body + length > stream.length) break;
     if (inSst && id !== RT.CONTINUE) { sst!.end = at; inSst = false; }
+    if (formula) {
+      if (id === RT.STRING) { formula.stringAt = at; formula = null; }
+      else if (id === RT.SHRFMLA || id === RT.ARRAY || id === RT.TABLE) formula.insertAt = body + length;
+      else formula = null;
+    }
     if (inSst) sst!.lastAt = at;
     if (first) {
       if (id !== RT.BOF || view.getUint16(body, true) !== 0x0600) throw new Error('엑셀 97–2003(BIFF8) 형식의 xls 만 고칠 수 있습니다.');
@@ -135,7 +149,8 @@ export function indexBiff(stream: Uint8Array): {
         else {
           const special = view.getUint16(body + 12, true) === 0xffff;
           const text = special && (stream[body + 6] === 0 || stream[body + 6] === 3);
-          cells.set(key, { kind: text ? 'formula-text' : 'formula', at: body + 6, flagsAt: body + 14, alwaysCalc: (view.getUint16(body + 14, true) & 1) === 1 });
+          formula = { kind: text ? 'formula-text' : 'formula', at: body + 6, flagsAt: body + 14, insertAt: body + length, alwaysCalc: (view.getUint16(body + 14, true) & 1) === 1 };
+          cells.set(key, formula);
         }
         break;
       }
@@ -177,8 +192,21 @@ const word = (x: number, size: 2 | 4): Uint8Array => {
 };
 
 /** 스트림 안에서 덮어쓸 자리와 바이트를 돌려준다. 스트림 자체는 건드리지 않는다. */
+export interface Splice { at: number; remove: number; insert: Uint8Array }
+
+/** STRING 기록 한 개(수식의 글자 결과). */
+function stringRecord(text: string): Uint8Array {
+  const body = encodeString(text);
+  const out = new Uint8Array(4 + body.length);
+  const view = new DataView(out.buffer);
+  view.setUint16(0, RT.STRING, true);
+  view.setUint16(2, body.length, true);
+  out.set(body, 4);
+  return out;
+}
+
 export function patchBiff(stream: Uint8Array, requests: XlsWrite[]): {
-  writes: Array<{ at: number; bytes: Uint8Array }>; problems: XlsProblem[]; strings: string[];
+  writes: Array<{ at: number; bytes: Uint8Array }>; problems: XlsProblem[]; strings: string[]; splices: Splice[];
 } {
   const index = indexBiff(stream);
   const view = new DataView(stream.buffer, stream.byteOffset, stream.byteLength);
@@ -186,6 +214,9 @@ export function patchBiff(stream: Uint8Array, requests: XlsWrite[]): {
   const problems: XlsProblem[] = [];
   /** SST 끝에 붙일 새 글자. 칸에는 (기존 개수 + 순번) 을 미리 적어 둔다. */
   const strings: string[] = [];
+  /** 길이가 바뀌는 고침 — STRING 기록을 바꾸거나 끼우거나 뺀다. */
+  const splices: Splice[] = [];
+  const recordLength = (at: number): number => 4 + view.getUint16(at + 2, true);
   const recalcOnOpen = (cell: BiffCell): void => {
     writes.push({ at: cell.flagsAt!, bytes: word(view.getUint16(cell.flagsAt!, true) | 1, 2) });
   };
@@ -212,23 +243,86 @@ export function patchBiff(stream: Uint8Array, requests: XlsWrite[]): {
       writes.push({ at: cell.at, bytes: word(rk, 4) });
       continue;
     }
-    // 수식 칸의 계산값
+    // 수식 칸의 계산값. 글자가 아닌 결과로 바뀌면 딸린 STRING 기록을 뺀다.
+    const dropString = (): void => { if (cell.stringAt !== undefined) splices.push({ at: cell.stringAt, remove: recordLength(cell.stringAt), insert: new Uint8Array() }); };
     if (typeof value === 'number') {
-      if (cell.kind === 'formula') writes.push({ at: cell.at, bytes: float(value) });
-      else { recalcOnOpen(cell); fail('글자를 내던 수식이 숫자를 내게 되어 이 파일에 바로 쓸 수 없습니다 — 엑셀에서 열면 다시 계산됩니다.'); }
+      writes.push({ at: cell.at, bytes: float(value) });
+      dropString();
     } else if (typeof value === 'boolean') {
       writes.push({ at: cell.at, bytes: new Uint8Array([1, 0, value ? 1 : 0, 0, 0, 0, 0xff, 0xff]) });
+      dropString();
     } else if (value === null || value === '') {
       writes.push({ at: cell.at, bytes: new Uint8Array([3, 0, 0, 0, 0, 0, 0xff, 0xff]) });
+      dropString();
     } else if (typeof value === 'object') {
       writes.push({ at: cell.at, bytes: new Uint8Array([2, 0, ERROR_CODES[value.error] ?? 0x0f, 0, 0, 0, 0xff, 0xff]) });
-    } else {
+      dropString();
+    } else if (value.length > MAX_TEXT) {
       recalcOnOpen(cell);
-      fail('글자 결과는 이 파일에 바로 쓸 수 없어, 엑셀에서 열면 다시 계산되도록 표시했습니다. 휴대폰 미리보기에는 옛 값이 보일 수 있습니다.');
+      fail(`수식 결과가 ${MAX_TEXT}자를 넘어 바로 쓰지 못했습니다 — 엑셀에서 열면 다시 계산됩니다.`);
+    } else {
+      writes.push({ at: cell.at, bytes: new Uint8Array([0, 0, 0, 0, 0, 0, 0xff, 0xff]) });
+      if (cell.stringAt !== undefined) splices.push({ at: cell.stringAt, remove: recordLength(cell.stringAt), insert: stringRecord(value) });
+      else splices.push({ at: cell.insertAt!, remove: 0, insert: stringRecord(value) });
     }
   }
   if (writes.length && index.recalcAt !== undefined) writes.push({ at: index.recalcAt, bytes: word(0, 4) });
-  return { writes, problems, strings };
+  return { writes, problems, strings, splices };
+}
+
+/**
+ * 시트 안 `at` 자리에서 `remove` 바이트를 빼고 `insert` 를 끼운 새 스트림.
+ * 밀린 만큼 고친다 — BOUNDSHEET 의 시트 시작 위치, INDEX 의 절대 위치(DEFCOLWIDTH·DBCELL),
+ * 그리고 그 자리가 든 행 묶음의 DBCELL(첫 ROW 까지 거리, 바뀐 자리 뒤 첫 행의 칸 거리).
+ * DBCELL 의 규칙은 엑셀이 만든 파일에서 읽어 확인했다(xls-patch.test.ts 의 dbcellMismatches).
+ */
+export function spliceBiff(stream: Uint8Array, at: number, remove: number, insert: Uint8Array): Uint8Array {
+  const delta = insert.length - remove;
+  const view = new DataView(stream.buffer, stream.byteOffset, stream.byteLength);
+
+  // 바뀐 자리가 든 행 묶음의 DBCELL 을 옛 스트림에서 찾는다.
+  let dbcell: { at: number; length: number; entry: number } | null = null;
+  let rows: Array<{ at: number; row: number }> = [];
+  const firstCell = new Map<number, number>();
+  for (let p = 0; p + 4 <= stream.length && !dbcell;) {
+    const id = view.getUint16(p, true);
+    const length = view.getUint16(p + 2, true);
+    const body = p + 4;
+    if (id === RT.ROW) rows.push({ at: p, row: view.getUint16(body, true) });
+    else if (CELL_RECORDS.has(id)) { const row = view.getUint16(body, true); if (!firstCell.has(row)) firstCell.set(row, p); }
+    else if (id === RT.DBCELL) {
+      if (rows.length && rows[0]!.at < at && at < p) {
+        const entry = rows.findIndex(r => (firstCell.get(r.row) ?? -1) > at);
+        dbcell = { at: p, length, entry };
+      }
+      rows = []; firstCell.clear();
+    } else if (id === RT.BOF || id === RT.EOF) { rows = []; firstCell.clear(); }
+    p = body + length;
+  }
+
+  const out = new Uint8Array(stream.length + delta);
+  out.set(stream.subarray(0, at), 0);
+  out.set(insert, at);
+  out.set(stream.subarray(at + remove), at + insert.length);
+  const next = new DataView(out.buffer);
+  const shift = (p: number): void => { const v = next.getUint32(p, true); if (v > at) next.setUint32(p, v + delta, true); };
+  for (let p = 0; p + 4 <= out.length;) {
+    const id = next.getUint16(p, true);
+    const length = next.getUint16(p + 2, true);
+    const body = p + 4;
+    if (id === RT.BOUNDSHEET) shift(body);
+    if (id === RT.INDEX) { shift(body + 12); for (let q = body + 16; q + 4 <= body + length; q += 4) shift(q); }
+    p = body + length;
+  }
+  if (dbcell) {
+    const body = dbcell.at + delta + 4;
+    next.setUint32(body, next.getUint32(body, true) + delta, true);
+    if (dbcell.entry >= 0) {
+      const slot = body + 4 + dbcell.entry * 2;
+      next.setUint16(slot, next.getUint16(slot, true) + delta, true);
+    }
+  }
+  return out;
 }
 
 /** XLUnicodeRichExtendedString — 늘 2바이트 글자(fHighByte)로 쓴다. 한글이 섞이기 때문이다. */
@@ -370,16 +464,20 @@ export function patchXls(file: Uint8Array, requests: XlsWrite[]): { bytes: Uint8
   }
   const stream = new Uint8Array(workbook.size);
   for (let i = 0; i < workbook.size; i++) stream[i] = file[workbook.offsetOf(i)]!;
-  const { writes, problems, strings } = patchBiff(stream, requests);
-  if (!strings.length) {
+  const { writes, problems, strings, splices } = patchBiff(stream, requests);
+  if (!strings.length && !splices.length) {
     // 숫자만 고쳤다 — 파일 안 제자리에 덮어쓴다. 나머지 바이트는 하나도 바뀌지 않는다.
     const bytes = file.slice();
     for (const write of writes) write.bytes.forEach((b, i) => { bytes[workbook.offsetOf(write.at + i)] = b; });
     return { bytes, problems };
   }
-  // 글자를 붙였다 — 스트림이 길어지므로 복합 문서를 다시 묶는다. 다른 스트림의 내용은 그대로다.
+  // 글자를 붙였거나 수식의 글자 결과를 바꿨다 — 스트림 길이가 바뀌므로 복합 문서를 다시 묶는다.
+  // 다른 스트림의 내용은 그대로다.
   for (const write of writes) stream.set(write.bytes, write.at);
-  const grown = growSst(stream, strings);
+  // 뒤쪽부터 늘이고 줄인다 — 앞쪽 자리는 그대로라 남은 고침의 위치가 어긋나지 않는다.
+  let edited: Uint8Array = stream;
+  for (const splice of [...splices].sort((a, b) => b.at - a.at)) edited = spliceBiff(edited, splice.at, splice.remove, splice.insert);
+  const grown = growSst(edited, strings);
   const container = CFB.read(file, { type: 'array' });
   const entry = CFB.find(container, workbook.name);
   if (!entry) throw new Error('xls 안에서 통합 문서를 찾지 못했습니다.');

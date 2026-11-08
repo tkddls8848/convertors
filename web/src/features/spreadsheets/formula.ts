@@ -333,6 +333,34 @@ function run(node: Node, ctx: FormulaContext): Result {
   }
 }
 
+/**
+ * 엑셀의 NUMBERSTRING — 견적서의 "일금 ○○원정". 엑셀이 낸 답에 맞췄다(formula.test.ts 의 표).
+ * 1: 일십삼만팔천육백(한 자리마다 '일' 을 붙인다), 2: 壹拾參萬八阡六百, 3: 일삼팔육영영.
+ * 소수는 반올림하고, 음수는 #NUM!.
+ */
+function numberString(x: number, how: number): CellValue {
+  if (x < 0 || ![1, 2, 3].includes(how)) return err('#NUM!');
+  const digits = String(Math.round(fifteen(x)));
+  const names = how === 2 ? ['零', '壹', '貳', '參', '四', '伍', '六', '七', '八', '九'] : ['영', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+  if (how === 3) return [...digits].map(d => names[Number(d)]).join('');
+  if (digits === '0') return names[0]!;
+  const small = how === 2 ? ['', '拾', '百', '阡'] : ['', '십', '백', '천'];
+  const large = how === 2 ? ['', '萬', '億', '兆', '京'] : ['', '만', '억', '조', '경'];
+  let out = '';
+  const groups = Math.ceil(digits.length / 4);
+  const padded = digits.padStart(groups * 4, '0');
+  for (let g = 0; g < groups; g++) {
+    const chunk = padded.slice(g * 4, g * 4 + 4);
+    let part = '';
+    for (let i = 0; i < 4; i++) {
+      const d = Number(chunk[i]);
+      if (d) part += names[d]! + small[3 - i]!;
+    }
+    if (part) out += part + large[groups - 1 - g]!;
+  }
+  return out;
+}
+
 /** 인수 값을 펼친다. 범위 안의 글자·빈 칸·참·거짓은 숫자 함수가 건너뛴다(엑셀과 같다). */
 function numbersOf(args: Node[], ctx: FormulaContext): number[] | { error: string } {
   const out: number[] = [];
@@ -435,6 +463,12 @@ function call(name: string, args: Node[], ctx: FormulaContext): Result {
     case 'NOT': { const b = toBool(one(0)); return isError(b) ? b : !b; }
     case 'CONCATENATE': case 'CONCAT': return args.map((_, i) => one(i)).map(v => (isError(v) ? v.error : toText(v))).join('');
     case 'VALUE': return num(0);
+    case 'NUMBERSTRING': {
+      const x = num(0); const how = num(1);
+      if (isError(x)) return x;
+      if (isError(how)) return how;
+      return numberString(x, Math.trunc(how));
+    }
     default: throw new UnsupportedFormula(`함수 ${name}`);
   }
 }

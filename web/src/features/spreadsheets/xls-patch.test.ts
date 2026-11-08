@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
 
-import { decodeRk, encodeRk, indexBiff, patchBiff, patchXls } from './xls-patch';
+import { CFB } from 'xlsx';
+import { decodeRk, encodeRk, indexBiff, patchBiff, patchXls, spliceBiff } from './xls-patch';
+import { fromWorkbook, recalc } from './sheet-recalc';
 
 // --- 손으로 짠 BIFF8 기록 ------------------------------------------------------
 const u16 = (n: number): number[] => [n & 0xff, (n >> 8) & 0xff];
@@ -41,6 +43,49 @@ function apply(bytes: Uint8Array, writes: Array<{ at: number; bytes: Uint8Array 
   const out = bytes.slice();
   for (const write of writes) out.set(write.bytes, write.at);
   return out;
+}
+function applySplices(bytes: Uint8Array, splices: Array<{ at: number; remove: number; insert: Uint8Array }>): Uint8Array {
+  let out = bytes;
+  for (const splice of [...splices].sort((a, b) => b.at - a.at)) out = spliceBiff(out, splice.at, splice.remove, splice.insert);
+  return out;
+}
+/** (row, col) 수식 칸 바로 뒤 STRING 기록의 글자. 없으면 undefined. */
+function textResult(bytes: Uint8Array, row: number, col: number): string | undefined {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let afterFormula = false;
+  for (let at = 0; at + 4 <= bytes.length;) {
+    const id = view.getUint16(at, true), length = view.getUint16(at + 2, true), body = at + 4;
+    if (afterFormula && id === 0x0207) {
+      const count = view.getUint16(body, true);
+      return bytes[body + 2] ? new TextDecoder('utf-16le').decode(bytes.subarray(body + 3, body + 3 + count * 2)) : String.fromCharCode(...bytes.subarray(body + 3, body + 3 + count));
+    }
+    afterFormula = id === 0x0006 && view.getUint16(body, true) === row && view.getUint16(body + 2, true) === col;
+    at = body + length;
+  }
+  return undefined;
+}
+/** 시트마다 DBCELL 이 엑셀의 규칙과 맞는지 — 첫 값은 첫 ROW 까지 거리, 다음은 행 첫 칸 사이 거리. */
+function dbcellMismatches(stream: Uint8Array): string[] {
+  const view = new DataView(stream.buffer, stream.byteOffset, stream.byteLength);
+  const cellIds = new Set([0x00fd, 0x0203, 0x027e, 0x00bd, 0x0006, 0x0201, 0x00be, 0x0205, 0x0204, 0x00d6]);
+  const bad: string[] = [];
+  let rows: Array<{ at: number; row: number }> = [];
+  const first = new Map<number, number>();
+  for (let at = 0; at + 4 <= stream.length;) {
+    const id = view.getUint16(at, true), length = view.getUint16(at + 2, true), body = at + 4;
+    if (id === 0x0208) rows.push({ at, row: view.getUint16(body, true) });
+    else if (cellIds.has(id)) { const row = view.getUint16(body, true); if (!first.has(row)) first.set(row, at); }
+    else if (id === 0x00d7 && rows.length) {
+      if (view.getUint32(body, true) !== at - rows[0]!.at) bad.push(`dbRtrw@${at}`);
+      rows.forEach((r, i) => {
+        const expected = i === 0 ? first.get(r.row)! - (rows[0]!.at + 20) : first.get(r.row)! - first.get(rows[i - 1]!.row)!;
+        if (view.getUint16(body + 4 + i * 2, true) !== expected) bad.push(`rgdb[${i}]@${at}`);
+      });
+      rows = []; first.clear();
+    }
+    at = body + length;
+  }
+  return bad;
 }
 
 describe('RK — xls 가 숫자를 4바이트에 접어 넣는 꼴', () => {
@@ -91,11 +136,21 @@ describe('BIFF8 기록 고치기', () => {
     expect(indexBiff(after).recalcBuild).toBe(0);
   });
 
-  it('글자 결과를 내는 수식은 덮어쓸 수 없어 "열 때 다시 계산" 표시를 하고 알린다', () => {
+  it('수식의 글자 결과도 쓴다 — 글자→글자, 숫자→글자, 글자→숫자', () => {
     const before = stream();
-    const { writes, problems } = patchBiff(before, [{ sheet: '견적', address: 'D6', value: '일금오천' }]);
-    expect(problems).toEqual([{ sheet: '견적', address: 'D6', reason: expect.stringMatching(/열면 다시 계산/) }]);
-    expect(indexBiff(apply(before, writes)).cells.get('견적!D6')!.alwaysCalc).toBe(true);
+    const { writes, problems, splices } = patchBiff(before, [
+      { sheet: '견적', address: 'D6', value: '일금오천원정' },
+      { sheet: '견적', address: 'D2', value: '없음' },
+    ]);
+    expect(problems).toEqual([]);
+    const after = applySplices(apply(before, writes), splices);
+    expect(textResult(after, 5, 3)).toBe('일금오천원정');
+    expect(textResult(after, 1, 3)).toBe('없음');
+    expect(indexBiff(after).cells.get('견적!C2')!.kind).toBe('number');
+    const back = patchBiff(after, [{ sheet: '견적', address: 'D6', value: 4500 }]);
+    const numeric = applySplices(apply(after, back.writes), back.splices);
+    expect(indexBiff(numeric).read('견적!D6')).toBe(4500);
+    expect(textResult(numeric, 5, 3)).toBeUndefined();
   });
 
   it('숫자 기록이 없는 칸(빈 칸·글자 칸)과 담을 수 없는 숫자는 고치지 않고 알린다', () => {
@@ -192,5 +247,21 @@ describe('엑셀이 만든 견적서(.xls) — web/scripts/make-quote-xls.ps1 �
       { sheet: '견적서', address: 'B6', value: '셋' },
     ]);
     expect(problems.map(p => p.address)).toEqual(['A6', 'B6']);
+  });
+
+  it('단가를 고치면 한글 금액(NUMBERSTRING) 칸에도 새 글자가 들어가고, 행 색인(DBCELL)은 엑셀 규칙대로다', () => {
+    const before = fixture();
+    const workbook = XLSX.read(before, { cellFormula: true });
+    const { changes, problems } = recalc(fromWorkbook(workbook), [{ sheet: '견적서', address: 'C6', value: 2000 }]);
+    expect(problems).toEqual([]);
+    const patched = patchXls(before, changes.map(c => ({ sheet: c.sheet, address: c.address, value: c.after })));
+    expect(patched.problems).toEqual([]);
+    const sheet = sheetOf(patched.bytes);
+    expect(sheet['B12']!.v).toBe('일금 일십삼만팔천육백원정');
+    expect(sheet['D11']!.v).toBe(138600);
+    expect(sheet['A14']!.v).toBe('납기: 발주 후 7일');
+    const streamOf = (bytes: Uint8Array): Uint8Array => new Uint8Array(CFB.find(CFB.read(bytes, { type: 'array' }), 'Workbook')!.content as Uint8Array);
+    expect(dbcellMismatches(streamOf(before))).toEqual([]);
+    expect(dbcellMismatches(streamOf(patched.bytes))).toEqual([]);
   });
 });

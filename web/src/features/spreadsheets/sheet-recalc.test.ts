@@ -46,10 +46,10 @@ describe('고친 칸에 딸린 수식만 다시 계산한다', () => {
 
   it('다시 계산하지 못한 칸과, 그 칸을 읽는 칸은 바꾸지 않고 까닭을 알린다', () => {
     const sheets = quote();
-    sheets[0]!.cells.set('D4', { value: 9500, formula: 'NUMBERSTRING(D2,1)' });
+    sheets[0]!.cells.set('D4', { value: 9500, formula: 'DATEDIF(D2,D3,"d")' });
     const { changes, problems } = recalc(sheets, [{ sheet: '견적', address: 'C2', value: 2000 }]);
     expect(problems.map(p => p.address)).toEqual(['D4', 'D5', 'D6']);
-    expect(problems[0]!.reason).toMatch(/NUMBERSTRING/);
+    expect(problems[0]!.reason).toMatch(/DATEDIF/);
     expect(problems[1]!.reason).toMatch(/D4/);
     expect(changes.map(change => change.address)).toEqual(['C2', 'D2']);
   });

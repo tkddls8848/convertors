@@ -71,8 +71,8 @@ describe('수식 계산', () => {
   });
 
   it('모르는 함수와 이름은 멈추고 이름을 알린다 — 조용히 틀린 값을 내지 않는다', () => {
-    expect(() => run('NUMBERSTRING(D20,1)')).toThrow(UnsupportedFormula);
-    expect(() => run('NUMBERSTRING(D20,1)')).toThrow(/NUMBERSTRING/);
+    expect(() => run('DATEDIF(A1,A2,"d")')).toThrow(UnsupportedFormula);
+    expect(() => run('DATEDIF(A1,A2,"d")')).toThrow(/DATEDIF/);
     expect(() => run('단가*2')).toThrow(UnsupportedFormula);
   });
 
@@ -86,5 +86,31 @@ describe('수식 계산', () => {
 
   it('xlsx 가 붙이는 _xlfn. 접두어는 떼고 읽는다', () => {
     expect(run('_xlfn.IFERROR(1/0,5)')).toBe(5);
+  });
+});
+
+describe('NUMBERSTRING — 엑셀이 낸 답(make-quote-xls 와 같은 PC 의 엑셀로 뽑았다)', () => {
+  const table: Array<[number, string, string, string]> = [
+    [0, '영', '零', '영'], [1, '일', '壹', '일'], [10, '일십', '壹拾', '일영'], [11, '일십일', '壹拾壹', '일일'],
+    [20, '이십', '貳拾', '이영'], [101, '일백일', '壹百壹', '일영일'], [110, '일백일십', '壹百壹拾', '일일영'],
+    [1001, '일천일', '壹阡壹', '일영영일'], [10000, '일만', '壹萬', '일영영영영'],
+    [12345, '일만이천삼백사십오', '壹萬貳阡參百四拾伍', '일이삼사오'], [110000, '일십일만', '壹拾壹萬', '일일영영영영'],
+    [138600, '일십삼만팔천육백', '壹拾參萬八阡六百', '일삼팔육영영'], [136950, '일십삼만육천구백오십', '壹拾參萬六阡九百伍拾', '일삼육구오영'],
+    [1234567, '일백이십삼만사천오백육십칠', '壹百貳拾參萬四阡伍百六拾七', '일이삼사오육칠'],
+    [100010000, '일억일만', '壹億壹萬', '일영영영일영영영영'],
+    [123456789, '일억이천삼백사십오만육천칠백팔십구', '壹億貳阡參百四拾伍萬六阡七百八拾九', '일이삼사오육칠팔구'],
+    [1000000000000, '일조', '壹兆', '일영영영영영영영영영영영영'],
+    [12.7, '일십삼', '壹拾參', '일삼'], [0.4, '영', '零', '영'], [99.5, '일백', '壹百', '일영영'],
+  ];
+  it.each(table)('%d', (n, one, two, three) => {
+    expect(run(`NUMBERSTRING(${n},1)`)).toBe(one);
+    expect(run(`NUMBERSTRING(${n},2)`)).toBe(two);
+    expect(run(`NUMBERSTRING(${n},3)`)).toBe(three);
+  });
+  it('음수는 #NUM!', () => {
+    expect(run('NUMBERSTRING(-1500,1)')).toEqual({ error: '#NUM!' });
+  });
+  it('견적서 한글 금액 꼴', () => {
+    expect(run('"일금 "&NUMBERSTRING(D11,1)&"원정"', { D11: 138600 })).toBe('일금 일십삼만팔천육백원정');
   });
 });
