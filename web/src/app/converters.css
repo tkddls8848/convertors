@@ -199,6 +199,25 @@
   border-radius: 8px;
 }
 
+/* 결과 칸 — 실행 하나의 상태·경고·미리보기·내려받기를 한 상자에 모은다.
+   아무것도 없으면 자리도 테두리도 없다. 빈 상자는 고장으로 보인다. */
+.conv-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+.conv-results > :is(.conv-status, [class*='outputs'], ul, ol):empty,
+.conv-results > [hidden] { display: none; }
+.conv-results > * { margin-top: 0; margin-bottom: 0; }
+.conv-results:has(> :not([hidden]):not(:empty)) {
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.conv-results:not(:has(> :not([hidden]):not(:empty))) { margin: 0; }
+
 .conv-stats {
   margin: 0.5rem 0;
   font-variant-numeric: tabular-nums;

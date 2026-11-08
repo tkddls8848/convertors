@@ -32,7 +32,21 @@ export function statusLine(element: HTMLElement): Say {
   return (text, tone) => {
     element.textContent = text;
     element.dataset['tone'] = tone ?? '';
+    // 실패는 결과다 — 화면 밖이면 보이게 한다. 진행 중 글·"복사했습니다" 로는 움직이지 않는다.
+    if (tone === 'error') revealResult(element);
   };
+}
+
+/**
+ * 실행 결과가 나왔을 때 결과 칸(`.conv-results`)이 화면 밖이면 보이게 스크롤한다.
+ * 초점은 옮기지 않는다 — 상태 줄의 `aria-live` 가 이미 알린다.
+ */
+export function revealResult(element: HTMLElement): void {
+  const target = element.closest<HTMLElement>('.conv-results') ?? element;
+  const { top, bottom } = target.getBoundingClientRect();
+  if (top >= 0 && bottom <= window.innerHeight) return;
+  const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  target.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
 }
 
 /** 내려받기 링크 묶음. `clear` 가 앞서 만든 URL 을 모두 거둔다. */
@@ -55,6 +69,7 @@ export function outputs(container: HTMLElement): Outputs {
       link.download = name;
       link.textContent = label ?? `${name} 내려받기 (${size(blob.size)})`;
       container.append(link);
+      revealResult(container);
       return link;
     },
     clear() {
