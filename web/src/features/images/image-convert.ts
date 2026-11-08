@@ -7,14 +7,16 @@
  * 얻는 것이 없는데, 여러 장을 한꺼번에 돌릴 때 사람이 그걸 바라는 일은 드물다.
  * 키우기는 따로 골라야 한다. 비율(%)은 100 을 넘기면 그 자체가 고른 것이다.
  */
-import { stem } from '../../shared/kit';
+import { size, stem } from '../../shared/kit';
 
 export type OutputFormat = 'png' | 'jpeg' | 'webp';
 
 export type Resize =
   | { mode: 'original' }
   | { mode: 'fit'; maxWidth: number | null; maxHeight: number | null; upscale: boolean }
-  | { mode: 'percent'; percent: number };
+  | { mode: 'percent'; percent: number }
+  /** 적은 가로·세로 그대로. 비율은 지키지 않는다 — 기관 규격(예: 431×620)을 맞출 때 쓴다 */
+  | { mode: 'exact'; width: number | null; height: number | null };
 
 export const IMAGE_CONVERT_LIMITS = {
   count: 200,
@@ -36,6 +38,13 @@ export interface Size { width: number; height: number }
 
 export function targetSize(source: Size, resize: Resize): Size {
   const { width, height } = source;
+  if (resize.mode === 'exact') {
+    if (resize.width === null || resize.height === null) throw new Error('정확한 크기는 가로·세로를 둘 다 적어 주세요.');
+    if (![resize.width, resize.height].every(value => Number.isInteger(value) && value >= 1)) {
+      throw new Error('가로·세로는 1 이상의 정수(px)로 적어 주세요.');
+    }
+    return { width: resize.width, height: resize.height };
+  }
   let scale = 1;
   if (resize.mode === 'percent') {
     const { min, max } = IMAGE_CONVERT_LIMITS.percent;
@@ -94,4 +103,65 @@ export function looksLikeImage(name: string, type: string): boolean {
 /** 0–100 의 화질을 캔버스가 받는 0–1 로. */
 export function qualityValue(percent: number): number {
   return Math.min(1, Math.max(0.01, percent / 100));
+}
+
+/**
+ * 비율을 무시하고 늘였을 때 어느 쪽으로 얼마나 늘었는지. 2% 미만은 눈에 띄지 않아
+ * 알리지 않는다.
+ */
+export function stretchNote(from: Size, to: Size): string | null {
+  const ratio = (to.width / to.height) / (from.width / from.height);
+  if (Math.abs(ratio - 1) < 0.02 && Math.abs(1 / ratio - 1) < 0.02) return null;
+  return ratio > 1
+    ? `비율이 달라져 가로로 ${Math.round((ratio - 1) * 100)}% 늘어납니다`
+    : `비율이 달라져 세로로 ${Math.round((1 / ratio - 1) * 100)}% 늘어납니다`;
+}
+
+/**
+ * 최대 용량(KB). **1KB 는 1,000 바이트로 센다.** 사이트가 1,024 로 세든 1,000 으로
+ * 세든 둘 다 넘지 않게 작은 쪽을 고른다. 비우면 한도 없음.
+ */
+export function parseMaxBytes(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  const kb = Number(trimmed);
+  if (!Number.isFinite(kb) || kb <= 0) throw new Error('최대 용량은 0 보다 큰 숫자(KB)로 적어 주세요.');
+  return Math.floor(kb * 1000);
+}
+
+/** 최대 용량에서 화질을 더 내리지 않는 바닥. 이 아래는 글씨·얼굴이 뭉개진다. */
+export const MIN_BUDGET_QUALITY = 10;
+
+const budgetLabel = (bytes: number): string => `${(bytes / 1000).toLocaleString('ko-KR')}KB`;
+
+/**
+ * 최대 용량 안에 드는 가장 높은 화질로 저장한다. 고른 화질이 위끝이다 — 들어가면
+ * 그대로 쓰고, 넘치면 그 아래에서 반씩 좁혀 찾는다(인코딩 열 번 안쪽).
+ * 화질이 높을수록 커진다고 본다. 실제 JPEG·WebP 인코더가 대체로 그렇다.
+ *
+ * `quality` 는 0–100. 돌려주는 `quality` 는 화질이 없는 형식(PNG)이면 null.
+ */
+export async function fitBudget(
+  encode: (quality: number) => Promise<Uint8Array>,
+  options: { maxBytes: number | null; quality: number; lossy: boolean },
+): Promise<{ bytes: Uint8Array; quality: number | null }> {
+  const { maxBytes, quality, lossy } = options;
+  const first = await encode(quality);
+  if (maxBytes === null || first.length <= maxBytes) return { bytes: first, quality: lossy ? quality : null };
+  if (!lossy) {
+    throw new Error(`PNG 로는 ${size(first.length)}라 최대 용량 ${budgetLabel(maxBytes)}를 넘습니다. JPEG 로 바꿔 보세요.`);
+  }
+  let low = Math.min(MIN_BUDGET_QUALITY, quality);
+  let best = { bytes: await encode(low), quality: low };
+  if (best.bytes.length > maxBytes) {
+    throw new Error(`화질 ${low} 으로도 ${size(best.bytes.length)}라 최대 용량 ${budgetLabel(maxBytes)}를 넘습니다. 크기(px)를 줄여 보세요.`);
+  }
+  let high = quality - 1;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    const bytes = await encode(middle);
+    if (bytes.length <= maxBytes) { best = { bytes, quality: middle }; low = middle; }
+    else high = middle - 1;
+  }
+  return best;
 }

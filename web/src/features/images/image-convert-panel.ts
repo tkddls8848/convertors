@@ -15,12 +15,14 @@ import { zipSync, type Zippable } from 'fflate';
 
 import { reason } from '../../shared/errors';
 import {
-  FORMATS, IMAGE_CONVERT_LIMITS, looksLikeImage, outputName, qualityValue, sizeProblem, targetSize, uniqueNames,
+  FORMATS, IMAGE_CONVERT_LIMITS, fitBudget, looksLikeImage, outputName, parseMaxBytes, qualityValue, sizeProblem, stretchNote,
+  targetSize, uniqueNames,
   type OutputFormat, type Resize, type Size,
 } from './image-convert';
 import { filePicker, need, outputs, size, statusLine, toolSection, yieldToPaint } from '../../shared/kit';
 
-interface Converted { name: string; bytes: Uint8Array; from: Size; to: Size }
+/** `quality` 는 실제로 쓴 화질(0–100). 화질이 없는 형식이면 null. */
+interface Converted { name: string; bytes: Uint8Array; from: Size; to: Size; quality: number | null }
 
 let webpSupport: boolean | undefined;
 function canEncodeWebp(): boolean {
@@ -62,7 +64,9 @@ function scaled(source: CanvasImageSource, from: Size, to: Size): HTMLCanvasElem
   return previous;
 }
 
-async function convert(file: File, format: OutputFormat, quality: number, resize: Resize): Promise<Omit<Converted, 'name'>> {
+async function convert(
+  file: File, format: OutputFormat, quality: number, resize: Resize, maxBytes: number | null,
+): Promise<Omit<Converted, 'name'>> {
   let bitmap: ImageBitmap;
   try { bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
   catch { throw new Error('이 브라우저가 열 수 없는 그림입니다.'); }
@@ -83,11 +87,15 @@ async function convert(file: File, format: OutputFormat, quality: number, resize
     if (format === 'jpeg') { context.fillStyle = '#ffffff'; context.fillRect(0, 0, to.width, to.height); }
     context.drawImage(step ?? bitmap, 0, 0, to.width, to.height);
     const { mime, lossy } = FORMATS[format];
-    const blob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(value => value ? resolve(value) : reject(new Error('그림을 저장하지 못했습니다. 메모리가 모자랄 수 있습니다.')), mime, lossy ? quality : undefined));
-    // 모르는 형식을 받으면 캔버스는 말없이 PNG 를 낸다. 이름과 내용이 어긋나지 않게 막는다.
-    if (blob.type !== mime) throw new Error(`이 브라우저는 ${FORMATS[format].label} 로 저장하지 못합니다.`);
-    return { bytes: new Uint8Array(await blob.arrayBuffer()), from, to };
+    const encode = async (percent: number): Promise<Uint8Array> => {
+      const blob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob(value => value ? resolve(value) : reject(new Error('그림을 저장하지 못했습니다. 메모리가 모자랄 수 있습니다.')), mime, lossy ? qualityValue(percent) : undefined));
+      // 모르는 형식을 받으면 캔버스는 말없이 PNG 를 낸다. 이름과 내용이 어긋나지 않게 막는다.
+      if (blob.type !== mime) throw new Error(`이 브라우저는 ${FORMATS[format].label} 로 저장하지 못합니다.`);
+      return new Uint8Array(await blob.arrayBuffer());
+    };
+    const fitted = await fitBudget(encode, { maxBytes, quality, lossy });
+    return { bytes: fitted.bytes, quality: fitted.quality, from, to };
   } finally {
     bitmap.close();
     for (const canvas of steps) { canvas.width = 0; canvas.height = 0; }
@@ -124,6 +132,7 @@ export function imageConvertTool(): HTMLElement {
           <option value="original" selected>원본 크기</option>
           <option value="fit">최대 가로·세로 (px)</option>
           <option value="percent">비율 (%)</option>
+          <option value="exact">정확한 크기 (비율 무시, px)</option>
         </select>
         <label for="image-convert-width" class="image-convert-fit">최대 가로</label>
         <input id="image-convert-width" class="image-convert-fit" type="number" min="1" step="1" placeholder="예: 1920" />
@@ -131,7 +140,15 @@ export function imageConvertTool(): HTMLElement {
         <input id="image-convert-height" class="image-convert-fit" type="number" min="1" step="1" placeholder="비우면 가로만 봄" />
         <label for="image-convert-percent" class="image-convert-percent">비율</label>
         <input id="image-convert-percent" class="image-convert-percent" type="number" min="1" max="400" step="1" value="50" />
+        <label for="image-convert-exact-width" class="image-convert-exact">가로 (px)</label>
+        <input id="image-convert-exact-width" class="image-convert-exact" type="number" min="1" step="1" placeholder="예: 431" />
+        <label for="image-convert-exact-height" class="image-convert-exact">세로 (px)</label>
+        <input id="image-convert-exact-height" class="image-convert-exact" type="number" min="1" step="1" placeholder="예: 620" />
+        <label for="image-convert-max-kb">최대 용량 (KB)</label>
+        <input id="image-convert-max-kb" type="number" min="1" step="1" placeholder="비우면 제한 없음" />
       </div>
+      <p class="conv-note image-convert-exact">비율을 지키지 않고 적은 크기 그대로 늘리거나 줄입니다. 원본과 비율이 다르면 사진이 그만큼 눌리거나 늘어납니다.</p>
+      <p class="conv-note">최대 용량을 적으면 JPEG·WebP 는 그 안에 드는 가장 높은 화질(위의 화질 이하)을 찾아 저장합니다. 1KB 는 1,000바이트로 셉니다.</p>
       <label class="image-convert-fit"><input id="image-convert-upscale" type="checkbox" /> 한도보다 작은 그림도 키우기</label>
       <p class="conv-note image-convert-alpha">JPEG 에는 투명이 없어 투명한 곳은 흰색으로 채웁니다.</p>
       <div class="conv-actions">
@@ -140,7 +157,7 @@ export function imageConvertTool(): HTMLElement {
       </div>
     </fieldset>
     <div class="conv-table-wrap" hidden><table class="conv-table image-convert-table">
-      <thead><tr><th>파일</th><th class="num">원본</th><th class="num">결과</th><th>크기(px)</th></tr></thead>
+      <thead><tr><th>파일</th><th class="num">원본</th><th class="num">결과</th><th>크기(px)</th><th class="num">화질</th></tr></thead>
       <tbody></tbody>
     </table></div>
     <div class="conv-outputs conv-actions" aria-label="저장 결과"></div>
@@ -157,6 +174,9 @@ export function imageConvertTool(): HTMLElement {
   const maxWidth = need<HTMLInputElement>(tool, '#image-convert-width');
   const maxHeight = need<HTMLInputElement>(tool, '#image-convert-height');
   const percent = need<HTMLInputElement>(tool, '#image-convert-percent');
+  const exactWidth = need<HTMLInputElement>(tool, '#image-convert-exact-width');
+  const exactHeight = need<HTMLInputElement>(tool, '#image-convert-exact-height');
+  const maxKb = need<HTMLInputElement>(tool, '#image-convert-max-kb');
   const upscale = need<HTMLInputElement>(tool, '#image-convert-upscale');
   const tableWrap = need<HTMLElement>(tool, '.conv-table-wrap');
   const tbody = need<HTMLElement>(tool, '.image-convert-table tbody');
@@ -176,6 +196,7 @@ export function imageConvertTool(): HTMLElement {
     qualityShown.textContent = lossy ? quality.value : '—';
     tool.querySelectorAll<HTMLElement>('.image-convert-fit').forEach(element => { element.hidden = resizeMode.value !== 'fit'; });
     tool.querySelectorAll<HTMLElement>('.image-convert-percent').forEach(element => { element.hidden = resizeMode.value !== 'percent'; });
+    tool.querySelectorAll<HTMLElement>('.image-convert-exact').forEach(element => { element.hidden = resizeMode.value !== 'exact'; });
     need<HTMLElement>(tool, '.image-convert-alpha').hidden = format.value !== 'jpeg';
   };
   const render = (): void => {
@@ -208,9 +229,10 @@ export function imageConvertTool(): HTMLElement {
     render();
   };
 
+  const number = (field: HTMLInputElement): number | null => field.value.trim() === '' ? null : Number(field.value);
   const readResize = (): Resize => {
+    if (resizeMode.value === 'exact') return { mode: 'exact', width: number(exactWidth), height: number(exactHeight) };
     if (resizeMode.value === 'fit') {
-      const number = (field: HTMLInputElement): number | null => field.value.trim() === '' ? null : Number(field.value);
       return { mode: 'fit', maxWidth: number(maxWidth), maxHeight: number(maxHeight), upscale: upscale.checked };
     }
     if (resizeMode.value === 'percent') return { mode: 'percent', percent: Number(percent.value) };
@@ -218,7 +240,7 @@ export function imageConvertTool(): HTMLElement {
   };
 
   filePicker(input, add, () => busy);
-  for (const control of [format, quality, resizeMode, maxWidth, maxHeight, percent, upscale]) {
+  for (const control of [format, quality, resizeMode, maxWidth, maxHeight, percent, upscale, exactWidth, exactHeight, maxKb]) {
     control.addEventListener('input', () => { sync(); clearResults(); });
   }
 
@@ -236,9 +258,11 @@ export function imageConvertTool(): HTMLElement {
     void (async () => {
       const chosen = format.value as OutputFormat;
       let resize: Resize;
+      let maxBytes: number | null;
       try {
         resize = readResize();
         targetSize({ width: 100, height: 100 }, resize); // 적은 값이 맞는지 먼저 본다
+        maxBytes = parseMaxBytes(maxKb.value);
       } catch (error) { say(reason(error), 'error'); return; }
 
       busy = true; sync(); clearResults();
@@ -253,16 +277,21 @@ export function imageConvertTool(): HTMLElement {
           const row = document.createElement('tr');
           row.append(cell(file.name), cell(size(file.size), 'num'));
           try {
-            const result = await convert(file, chosen, qualityValue(Number(quality.value)), resize);
+            const result = await convert(file, chosen, Number(quality.value), resize, maxBytes);
             done.push({ name: names[index]!, ...result });
             const grew = result.bytes.length > file.size;
             const after = cell(`${size(result.bytes.length)}${grew ? ' (커짐)' : ''}`, 'num');
             if (grew) after.title = '원본보다 커졌습니다. 이미 압축된 사진을 PNG 로 바꾸거나 화질을 높이면 그렇습니다.';
-            row.append(after, cell(`${result.from.width}×${result.from.height} → ${result.to.width}×${result.to.height}`));
+            const stretched = resize.mode === 'exact' ? stretchNote(result.from, result.to) : null;
+            row.append(
+              after,
+              cell(`${result.from.width}×${result.from.height} → ${result.to.width}×${result.to.height}${stretched ? ` (${stretched})` : ''}`),
+              cell(result.quality === null ? '—' : String(result.quality), 'num'),
+            );
           } catch (error) {
             failed++;
             const problem = cell(`바꾸지 못했습니다: ${reason(error)}`);
-            problem.colSpan = 2;
+            problem.colSpan = 3;
             problem.className = 'conv-bad';
             row.append(problem);
           }

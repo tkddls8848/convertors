@@ -180,6 +180,38 @@ try {
   const jpeg = await bytesOf(tool.locator('.conv-outputs a').first());
   assert.deepEqual([...jpeg.slice(0, 3)], [0xff, 0xd8, 0xff]);
 
+  // 기관 규격 — 비율을 무시하고 정확히 431×620, 최대 용량 안에 드는 화질로.
+  // 잡음뿐인 그림이라 화질 85 로는 한도를 넘으므로 화질을 낮춰 찾아야 한다.
+  await tool.getByRole('button', { name: '초기화', exact: true }).click();
+  const photoBytes = await page.evaluate(async () => {
+    const c = document.createElement('canvas'); c.width = 1200; c.height = 900;
+    const x = c.getContext('2d'); const data = x.createImageData(1200, 900);
+    for (let i = 0; i < data.data.length; i += 4) {
+      const v = Math.random() * 255;
+      data.data[i] = v; data.data[i + 1] = Math.random() * 255; data.data[i + 2] = 255 - v; data.data[i + 3] = 255;
+    }
+    x.putImageData(data, 0, 0);
+    const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  });
+  await tool.locator('#image-convert-file').setInputFiles({ name: '면허사진.png', mimeType: 'image/png', buffer: Buffer.from(photoBytes) });
+  await tool.locator('#image-convert-format').selectOption('jpeg');
+  await tool.locator('#image-convert-resize').selectOption('exact');
+  await tool.getByLabel('가로 (px)').fill('431');
+  await tool.getByLabel('세로 (px)').fill('620');
+  await tool.getByLabel('최대 용량 (KB)').fill('60');
+  await tool.getByRole('button', { name: '바꾸기', exact: true }).click();
+  const fitted = await bytesOf(tool.locator('.conv-outputs a').first());
+  assert.ok(fitted.length <= 60_000, `최대 용량을 넘었습니다: ${fitted.length}바이트`);
+  const fittedSize = await page.evaluate(async bytes => {
+    const bitmap = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/jpeg' }));
+    return [bitmap.width, bitmap.height];
+  }, Array.from(fitted));
+  assert.deepEqual(fittedSize, [431, 620]);
+  const usedQuality = Number(await tool.locator('.image-convert-table tbody td.num').last().textContent());
+  assert.ok(usedQuality < 85 && usedQuality >= 10, `화질을 낮춰 찾지 않았습니다: ${usedQuality}`);
+  assert.match(await tool.locator('.image-convert-table tbody').textContent(), /1200×900 → 431×620 \(비율이 달라져 세로로 \d+% 늘어납니다\)/);
+
   // --- PDF 도구 ---
   const sample = await PDFDocument.create();
   sample.setTitle('비밀 문서'); sample.setAuthor('홍길동');
@@ -251,5 +283,5 @@ try {
   }
   await page.screenshot({ path: fileURLToPath(new URL('office-mobile.png', out)), fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('PASS: 16 office tools open with unique ids; money, VAT, bizno, dates, count, diff, redact, hash, rename→ZIP, CSV merge, QR (SVG/PNG), image→JPEG, PDF meta clear, stamp, 2-up, signature stamp, Korean watermark (font embed + read-back); mobile width.');
+  console.log('PASS: 16 office tools open with unique ids; money, VAT, bizno, dates, count, diff, redact, hash, rename→ZIP, CSV merge, QR (SVG/PNG), image→JPEG, image exact 431×620 under a KB budget, PDF meta clear, stamp, 2-up, signature stamp, Korean watermark (font embed + read-back); mobile width.');
 } finally { await browser.close(); }
