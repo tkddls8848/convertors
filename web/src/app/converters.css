@@ -1,20 +1,70 @@
 /* 변환기 탭 전용 스타일. 색과 글꼴은 셸이 정한 변수를 그대로 쓴다
    (web/src/styles.css). 여기에는 이 탭에만 있는 것만 둔다. */
 
-/* 본문은 읽기 좋은 너비로 **가운데** 세운다. 셸(.shell)은 76rem 까지 넓어서
-   auto 여백이 없으면 이 칸이 왼쪽에 붙어 버린다. */
+/* 넓은 화면에서는 왼쪽에 도구 목록이 서므로 셸(.shell, 76rem) 폭을 다 쓴다.
+   글로 읽는 머리말만 읽기 좋은 너비로 좁힌다. */
 .converters {
-  max-width: 54rem;
+  max-width: 76rem;
   margin: 0 auto;
 }
+.conv-intro, .conv-footer { max-width: 54rem; }
 
 /* 변환 고르기 — 한꺼번에 펼치지 않고 여기서 하나를 고른다. 갈래별로 묶는다.
-   칸 수는 화면 너비가 정한다. 좁은 화면에서는 저절로 한 줄에 하나가 된다. */
+   좁은 화면: 위에 쌓이고, 고르면 토글 한 줄로 접힌다(panel.ts 의 NARROW 와 같은 폭).
+   넓은 화면: 왼쪽에 이름만 한 줄씩 늘 서 있고 고른 도구가 오른쪽에 열린다. */
 .conv-choices {
   margin: 0 0 1.5rem;
 }
 
 .conv-choices__title { margin: 0 0 0.75rem; font-size: 1.05rem; }
+
+.conv-choices__toggle {
+  display: none;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.conv-choices__toggle::after { content: ' ▾'; color: var(--muted); }
+.conv-choices__toggle[aria-expanded='true']::after { content: ' ▴'; }
+
+@media (max-width: 56rem) {
+  .conv-choices__toggle { display: block; margin-bottom: 0.75rem; }
+  .conv-choices[data-collapsed] .conv-choices__groups { display: none; }
+  .conv-choices[data-collapsed] .conv-choices__title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+@media (min-width: 56.01rem) {
+  .conv-layout {
+    display: grid;
+    grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .conv-choices {
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow: auto;
+    margin: 0;
+    padding: 0.25rem 0.5rem 1rem 0;
+    border-right: 1px solid var(--line);
+  }
+  .conv-choices .conv-group__choices { display: flex; flex-direction: column; gap: 0.15rem; }
+  .conv-choices .conv-choice { padding: 0.4rem 0.6rem; border-color: transparent; border-radius: 8px; background: transparent; }
+  .conv-choices .conv-choice[aria-pressed='true'] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+  .conv-choices .conv-choice__title { font-weight: 500; font-size: 0.95rem; }
+  .conv-choices .conv-choice[aria-pressed='true'] .conv-choice__title { font-weight: 700; }
+  /* 설명은 화면에서만 숨긴다 — 버튼 이름에는 남는다. */
+  .conv-choices .conv-choice__summary { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .conv-choices .conv-group + .conv-group { margin-top: 0.9rem; }
+}
 
 /* 입력칸·링크·펼치기 단추도 같은 표시로 키보드의 현재 자리를 알려 준다. */
 .converters :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }

@@ -6,7 +6,9 @@
  * (결정 0018).
  *
  * 스물다섯을 한 화면에 늘어놓지 않는다. 먼저 **무엇을 변환할지 고르게 하고**, 고른
- * 것 하나만 아래에 세운다. 이유는 둘이다.
+ * 것 하나만 세운다 — 넓은 화면에서는 목록 오른쪽, 좁은 화면에서는 접힌 목록 바로
+ * 아래 첫 화면이다. 고른 도구가 목록 밑 화면 밖에 열리면 무엇이 바뀌었는지 보이지
+ * 않는다. 이유는 둘이다.
  *
  *   - 쓰는 사람은 한 번에 한 가지를 한다. 나머지 도구의 한도·주의사항까지
  *     읽어 가며 제 자리를 찾을 이유가 없다
@@ -51,11 +53,29 @@ export function mountConverters(root: HTMLElement): void {
   const chooserTitle = document.createElement('h2');
   chooserTitle.className = 'conv-choices__title';
   chooserTitle.textContent = '변환 고르기';
-  chooser.append(chooserTitle);
+  // 좁은 화면에서는 목록이 길어 도구를 밀어낸다. 고르면 이 단추 한 줄로 접는다.
+  // 넓은 화면에서는 목록이 늘 왼쪽에 서고 이 단추는 숨는다(CSS).
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'conv-choices__toggle';
+  toggle.setAttribute('aria-controls', 'conv-choice-groups');
+  const groups = document.createElement('div');
+  groups.className = 'conv-choices__groups';
+  groups.id = 'conv-choice-groups';
+  const collapse = (collapsed: boolean): void => {
+    chooser.toggleAttribute('data-collapsed', collapsed);
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+  };
+  toggle.textContent = '도구 고르기';
+  collapse(false);
+  toggle.addEventListener('click', () => collapse(chooser.hasAttribute('data-collapsed') === false));
+  chooser.append(chooserTitle, toggle, groups);
 
   const select = async (choice: Choice): Promise<void> => {
     wanted = choice.id;
     for (const [id, button] of buttons) button.setAttribute('aria-pressed', String(id === choice.id));
+    toggle.textContent = `${choice.title} · 다른 도구 고르기`;
+    collapse(true);
     let tool = built.get(choice.id);
     if (!tool) {
       stage.removeAttribute('aria-labelledby');
@@ -88,6 +108,8 @@ export function mountConverters(root: HTMLElement): void {
         // 고르던 자리까지 함께 움직이면 키보드 사용자가 위치를 잃는다.
         title.focus({ preventScroll: true });
       }
+      // 좁은 화면에서는 접힌 목록 아래로 도구를 끌어올린다. 붙인 뒤에 해야 옮길 높이가 있다.
+      if (narrow()) stage.scrollIntoView?.({ block: 'start', behavior: still() ? 'auto' : 'smooth' });
     }
   };
 
@@ -108,6 +130,8 @@ export function mountConverters(root: HTMLElement): void {
       button.dataset['choice'] = choice.id;
       button.setAttribute('aria-pressed', 'false');
       button.setAttribute('aria-controls', stage.id);
+      // 넓은 화면의 목록은 이름만 보인다. 설명은 마우스를 올리면 보이고, 버튼 이름에는 그대로 남는다.
+      button.title = choice.summary;
 
       const title = document.createElement('span');
       title.className = 'conv-choice__title';
@@ -121,11 +145,19 @@ export function mountConverters(root: HTMLElement): void {
       buttons.set(choice.id, button);
       grid.append(button);
     }
-    chooser.append(section);
+    groups.append(section);
   }
 
-  root.append(header(), chooser, stage, footer());
+  const layout = document.createElement('div');
+  layout.className = 'conv-layout';
+  layout.append(chooser, stage);
+  root.append(header(), layout, footer());
 }
+
+/** 목록이 왼쪽에 서지 못하고 위에 쌓이는 폭. converters.css 의 분기와 같은 값이다. */
+const NARROW = '(max-width: 56rem)';
+const narrow = (): boolean => typeof matchMedia === 'function' && matchMedia(NARROW).matches;
+const still = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** 고지 자료가 없는 배포에서 빈 링크를 약속하지 않는다. */
 function footer(): HTMLElement {
@@ -198,7 +230,7 @@ function notice(text: string, error = false): HTMLElement {
 function placeholder(): HTMLElement {
   const empty = document.createElement('p');
   empty.className = 'conv-empty';
-  empty.textContent = '위에서 하려는 변환을 고르세요. 고른 것만 여기에 열립니다.';
+  empty.textContent = '하려는 변환을 고르세요. 고른 것만 여기에 열립니다.';
   return empty;
 }
 

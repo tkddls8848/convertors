@@ -5,8 +5,8 @@ import { mountConverters } from './panel';
 const builders = vi.hoisted(() => ({ first: vi.fn(), second: vi.fn() }));
 vi.mock('./tool-registry', () => ({
   GROUPS: [{ title: 'Tools', choices: [
-    { id: 'first', title: 'First', summary: '', build: builders.first },
-    { id: 'second', title: 'Second', summary: '', build: builders.second },
+    { id: 'first', title: 'First', summary: 'S1', build: builders.first },
+    { id: 'second', title: 'Second', summary: 'S2', build: builders.second },
   ] }],
 }));
 
@@ -59,4 +59,31 @@ it('allows retry after a failed build', async () => {
   choose('first');
   await vi.waitFor(() => expect(document.querySelector('.conv-stage h2')!.textContent).toBe('First'));
   expect(builders.first).toHaveBeenCalledTimes(2);
+});
+
+it('처음에는 목록이 펼쳐져 있고, 고르면 접히며 토글에 고른 이름이 보인다', async () => {
+  const toggle = document.querySelector<HTMLButtonElement>('.conv-choices__toggle')!;
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(toggle.getAttribute('aria-controls')).toBe('conv-choice-groups');
+  expect(document.getElementById('conv-choice-groups')!.querySelector('[data-choice="first"]')).not.toBeNull();
+  expect(toggle.textContent).toBe('도구 고르기');
+  builders.first.mockImplementation(() => tool('First'));
+  choose('first');
+  await vi.waitFor(() => expect(toggle.getAttribute('aria-expanded')).toBe('false'));
+  expect(document.querySelector('.conv-choices')!.hasAttribute('data-collapsed')).toBe(true);
+  expect(toggle.textContent).toBe('First · 다른 도구 고르기');
+  toggle.click();
+  expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  expect(document.querySelector('.conv-choices')!.hasAttribute('data-collapsed')).toBe(false);
+});
+
+it('도구 버튼 이름에 한 줄 설명이 남고 title 로도 보인다', () => {
+  const button = document.querySelector('[data-choice="first"]')!;
+  expect(button.textContent).toContain('S1');
+  expect(button.getAttribute('title')).toBe('S1');
+});
+
+it('목록과 고른 도구가 한 틀 안에 나란히 있다', () => {
+  const layout = document.querySelector('.conv-layout')!;
+  expect([...layout.children].map(child => child.className)).toEqual(['conv-choices', 'conv-stage']);
 });
